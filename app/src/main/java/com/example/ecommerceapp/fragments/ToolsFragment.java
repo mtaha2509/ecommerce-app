@@ -15,9 +15,7 @@ import com.example.ecommerceapp.R;
 
 public class ToolsFragment extends Fragment {
 
-    private GridLayout basicFunctionGrid, businessUpgradeGrid;
-
-    // Dummy tool data
+    private GridLayout basicFunctionGrid;
     private String[] basicTools = {"Add Products", "Products", "Orders"};
     private int[] basicIcons = {
             R.drawable.cart_plus,
@@ -28,17 +26,13 @@ public class ToolsFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_tools, container, false);
-
         basicFunctionGrid = view.findViewById(R.id.basic_function_grid);
-        businessUpgradeGrid = view.findViewById(R.id.business_upgrade_grid);
-
         return view;
     }
-
     private void addToolItems(LayoutInflater inflater, GridLayout grid, String[] names, int[] icons) {
         for (int i = 0; i < names.length; i++) {
-            View item = inflater.inflate(R.layout.item_tool, null);
 
+            View item = inflater.inflate(R.layout.item_tool, null);
             ImageView icon = item.findViewById(R.id.img_tool_icon);
             TextView label = item.findViewById(R.id.tv_tool_name);
 

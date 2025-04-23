@@ -39,22 +39,6 @@
             android:rowOrderPreserved="false"
             android:useDefaultMargins="true" />
 
-        <!-- Business Upgrading Section -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Business upgrading"
-            android:textStyle="bold"
-            android:textSize="16sp"
-            android:layout_marginBottom="8dp"/>
-
-        <GridLayout
-            android:id="@+id/business_upgrade_grid"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:columnCount="3"
-            android:alignmentMode="alignMargins"
-            android:useDefaultMargins="true" />
 
     </LinearLayout>
 </ScrollView>

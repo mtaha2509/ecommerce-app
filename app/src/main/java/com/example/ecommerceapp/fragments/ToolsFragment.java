@@ -1,5 +1,6 @@
 package com.example.ecommerceapp.fragments;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -11,6 +12,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.ecommerceapp.R;
+import com.example.ecommerceapp.activities.AddProductActivity;
 import com.example.ecommerceapp.adapters.ToolAdapter;
 import com.example.ecommerceapp.models.Tool;
 
@@ -42,10 +44,13 @@ public class ToolsFragment extends Fragment implements ToolAdapter.OnToolClickLi
 
     @Override
     public void onToolClick(Tool tool) {
-        // Handle tool click events here
-        // Example:
-        // if (tool.getName().equals("Add Products")) {
-        //     startActivity(new Intent(getActivity(), AddProductsActivity.class));
-        // }
+        if (tool.getName().equals("Add Products")) {
+            Intent intent = new Intent(getActivity(), AddProductActivity.class);
+            startActivity(intent);
+        } else if (tool.getName().equals("Products")) {
+            // TODO: Handle Products click
+        } else if (tool.getName().equals("Orders")) {
+            // TODO: Handle Orders click
+        }
     }
 }

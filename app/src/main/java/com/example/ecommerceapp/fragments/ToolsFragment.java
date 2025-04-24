@@ -4,57 +4,48 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.GridLayout;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.ecommerceapp.R;
+import com.example.ecommerceapp.adapters.ToolAdapter;
+import com.example.ecommerceapp.models.Tool;
 
-public class ToolsFragment extends Fragment {
+import java.util.ArrayList;
+import java.util.List;
 
-    private GridLayout basicFunctionGrid;
-    private String[] basicTools = {"Add Products", "Products", "Orders"};
-    private int[] basicIcons = {
-            R.drawable.cart_plus,
-            R.drawable.storefront_24px,
-            R.drawable.orders_24px,
-    };
+public class ToolsFragment extends Fragment implements ToolAdapter.OnToolClickListener {
+
+    private RecyclerView toolsRecyclerView;
+    private ToolAdapter toolAdapter;
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_tools, container, false);
-        basicFunctionGrid = view.findViewById(R.id.basic_function_grid);
+        
+        toolsRecyclerView = view.findViewById(R.id.tools_recycler_view);
+        toolsRecyclerView.setLayoutManager(new GridLayoutManager(getContext(), 2));
+        
+        List<Tool> tools = new ArrayList<>();
+        tools.add(new Tool("Add Products", R.drawable.cart_plus));
+        tools.add(new Tool("Products", R.drawable.storefront_24px));
+        tools.add(new Tool("Orders", R.drawable.orders_24px));
+        
+        toolAdapter = new ToolAdapter(tools, this);
+        toolsRecyclerView.setAdapter(toolAdapter);
+        
         return view;
     }
-    private void addToolItems(LayoutInflater inflater, GridLayout grid, String[] names, int[] icons) {
-        for (int i = 0; i < names.length; i++) {
 
-            View item = inflater.inflate(R.layout.item_tool, null);
-            ImageView icon = item.findViewById(R.id.img_tool_icon);
-            TextView label = item.findViewById(R.id.tv_tool_name);
-
-            icon.setImageResource(icons[i]);
-            label.setText(names[i]);
-
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-            );
-            item.setLayoutParams(params);
-
-            // Add to grid
-            grid.addView(item);
-
-            // Optional: Add click listener
-            int index = i; // for lambda capture
-            item.setOnClickListener(v -> {
-                // Handle click event here (e.g., open AddProductsActivity)
-                // Example:
-                // startActivity(new Intent(getActivity(), AddProductsActivity.class));
-            });
-        }
+    @Override
+    public void onToolClick(Tool tool) {
+        // Handle tool click events here
+        // Example:
+        // if (tool.getName().equals("Add Products")) {
+        //     startActivity(new Intent(getActivity(), AddProductsActivity.class));
+        // }
     }
 }

@@ -41,6 +41,8 @@ dependencies {
     implementation("androidx.viewpager2:viewpager2:1.0.0")
     implementation(libs.firebase.database)
     implementation("com.google.firebase:firebase-auth:23.2.0")
+    implementation("com.google.firebase:firebase-firestore:25.0.0")
+    implementation("com.google.firebase:firebase-storage:20.3.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

@@ -2,101 +2,116 @@ package com.example.ecommerceapp.activities;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.TextUtils;
-import android.view.View;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.example.ecommerceapp.MainActivity;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.ecommerceapp.R;
-import com.example.ecommerceapp.MainActivity;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class SignUpActivity extends AppCompatActivity {
-
-    private EditText emailEditText, passwordEditText, confirmPasswordEditText;
-    private Button signUpButton;
-    private TextView loginTextView;
-    private ProgressBar progressBar;
-    private FirebaseAuth mAuth;
+    private static final String TAG = "SignUpActivity";
+    private EditText etEmail, etPassword;
+    private Button btnSignUp;
+    private TextView tvLogin;
+    private FirebaseAuth auth;
+    private FirebaseFirestore firestore;
+    private String userRole;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_sign_up);
+        Log.d(TAG, "onCreate started");
 
-        mAuth = FirebaseAuth.getInstance();
-        initializeViews();
-        setupClickListeners();
-    }
+        // Get the role from WelcomeActivity
+        userRole = getIntent().getStringExtra("role");
+        if (userRole == null) {
+            Log.e(TAG, "No role provided");
+            Toast.makeText(this, "Error: No role selected", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
 
-    private void initializeViews() {
-        emailEditText = findViewById(R.id.et_email);
-        passwordEditText = findViewById(R.id.et_password);
-        confirmPasswordEditText = findViewById(R.id.et_confirm_password);
-        signUpButton = findViewById(R.id.btn_sign_up);
-        loginTextView = findViewById(R.id.tv_login);
-        progressBar = findViewById(R.id.progress_bar);
-    }
+        try {
+            auth = FirebaseAuth.getInstance();
+            firestore = FirebaseFirestore.getInstance();
 
-    private void setupClickListeners() {
-        signUpButton.setOnClickListener(v -> signUpUser());
-        loginTextView.setOnClickListener(v -> startLoginActivity());
+            etEmail = findViewById(R.id.et_email);
+            etPassword = findViewById(R.id.et_password);
+            btnSignUp = findViewById(R.id.btn_sign_up);
+            tvLogin = findViewById(R.id.tv_login);
+
+            btnSignUp.setOnClickListener(v -> signUpUser());
+            tvLogin.setOnClickListener(v -> {
+                startActivity(new Intent(SignUpActivity.this, LoginActivity.class));
+                finish();
+            });
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onCreate", e);
+            Toast.makeText(this, "Error initializing: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void signUpUser() {
-        String email = emailEditText.getText().toString().trim();
-        String password = passwordEditText.getText().toString().trim();
-        String confirmPassword = confirmPasswordEditText.getText().toString().trim();
+        String email = etEmail.getText().toString().trim();
+        String password = etPassword.getText().toString().trim();
 
-        if (TextUtils.isEmpty(email)) {
-            emailEditText.setError("Email is required");
+        if (email.isEmpty() || password.isEmpty()) {
+            Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        if (TextUtils.isEmpty(password)) {
-            passwordEditText.setError("Password is required");
-            return;
-        }
-
-        if (password.length() < 6) {
-            passwordEditText.setError("Password must be at least 6 characters");
-            return;
-        }
-
-        if (!password.equals(confirmPassword)) {
-            confirmPasswordEditText.setError("Passwords do not match");
-            return;
-        }
-
-        progressBar.setVisibility(View.VISIBLE);
-
-        mAuth.createUserWithEmailAndPassword(email, password)
+        auth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener(this, task -> {
-                    progressBar.setVisibility(View.GONE);
                     if (task.isSuccessful()) {
-                        Toast.makeText(SignUpActivity.this, "Registration successful", Toast.LENGTH_SHORT).show();
-                        startMainActivity();
+                        Log.d(TAG, "createUserWithEmail:success");
+                        FirebaseUser user = auth.getCurrentUser();
+                        if (user != null) {
+                            // Store user role in Firestore
+                            Map<String, Object> userData = new HashMap<>();
+                            userData.put("email", email);
+                            userData.put("role", userRole);
+
+                            firestore.collection("users")
+                                    .document(user.getUid())
+                                    .set(userData)
+                                    .addOnSuccessListener(aVoid -> {
+                                        Log.d(TAG, "User role stored in Firestore");
+                                        navigateBasedOnRole();
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        Log.e(TAG, "Error storing user role", e);
+                                        Toast.makeText(SignUpActivity.this, "Error storing user data", Toast.LENGTH_SHORT).show();
+                                    });
+                        }
                     } else {
-                        Toast.makeText(SignUpActivity.this, "Registration failed: " + task.getException().getMessage(),
+                        Log.w(TAG, "createUserWithEmail:failure", task.getException());
+                        Toast.makeText(SignUpActivity.this, "Authentication failed: " + task.getException().getMessage(),
                                 Toast.LENGTH_SHORT).show();
                     }
                 });
     }
 
-    private void startMainActivity() {
-        Intent intent = new Intent(SignUpActivity.this, MainActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+    private void navigateBasedOnRole() {
+        Intent intent;
+        if (userRole.equals("buyer")) {
+            intent = new Intent(SignUpActivity.this, ProductListActivity.class);
+        } else {
+            intent = new Intent(SignUpActivity.this, MainActivity.class);
+        }
         startActivity(intent);
-        finish();
-    }
-
-    private void startLoginActivity() {
-        startActivity(new Intent(SignUpActivity.this, LoginActivity.class));
         finish();
     }
 } 

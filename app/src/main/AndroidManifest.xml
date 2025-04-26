@@ -19,7 +19,7 @@
         android:theme="@style/Theme.EcommerceApp"
         tools:targetApi="31">
         <activity
-            android:name=".activities.LoginActivity"
+            android:name=".activities.WelcomeActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -27,13 +27,22 @@
             </intent-filter>
         </activity>
         <activity
+            android:name=".activities.LoginActivity"
+            android:exported="false" />
+        <activity
             android:name=".activities.SignUpActivity"
             android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:exported="false" />
         <activity
+            android:name=".activities.ProductListActivity"
+            android:exported="false" />
+        <activity
             android:name=".activities.AddProductActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.ProductDetailActivity"
             android:exported="false" />
     </application>
 

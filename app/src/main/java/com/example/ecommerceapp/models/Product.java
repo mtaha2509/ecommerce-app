@@ -9,18 +9,22 @@ public class Product {
     private String category;
     private double price;
     private List<String> imageUrls;
+    private String glbUrl;  // URL for the 3D model
+    private String videoUrl; // URL for the preview video
     private String userId;
     private long timestamp;
 
     // Required empty constructor for Firestore
     public Product() {}
 
-    public Product(String title, String description, String category, double price, List<String> imageUrls, String userId) {
+    public Product(String title, String description, String category, double price, List<String> imageUrls, String glbUrl, String videoUrl, String userId) {
         this.title = title;
         this.description = description;
         this.category = category;
         this.price = price;
         this.imageUrls = imageUrls;
+        this.glbUrl = glbUrl;
+        this.videoUrl = videoUrl;
         this.userId = userId;
         this.timestamp = System.currentTimeMillis();
     }
@@ -38,6 +42,10 @@ public class Product {
     public void setPrice(double price) { this.price = price; }
     public List<String> getImageUrls() { return imageUrls; }
     public void setImageUrls(List<String> imageUrls) { this.imageUrls = imageUrls; }
+    public String getGlbUrl() { return glbUrl; }
+    public void setGlbUrl(String glbUrl) { this.glbUrl = glbUrl; }
+    public String getVideoUrl() { return videoUrl; }
+    public void setVideoUrl(String videoUrl) { this.videoUrl = videoUrl; }
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
     public long getTimestamp() { return timestamp; }

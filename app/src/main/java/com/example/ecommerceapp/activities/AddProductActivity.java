@@ -1,5 +1,16 @@
 package com.example.ecommerceapp.activities;
 
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;                      // OkHttp classes :contentReference[oaicite:4]{index=4}
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -33,13 +44,19 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.net.SocketTimeoutException;
 
 public class AddProductActivity extends AppCompatActivity {
     private static final String TAG = "AddProductActivity";
     private static final int PERMISSION_REQUEST_CODE = 100;
+    private static final String MODEL_VERSION = "4876f2a8da1c544772dffa32e8889da4a1bab3a1f5c1937bfcfccb99ae347251";
+    private static final String REPLICATE_TOKEN = "api_key";
+
     private EditText titleEditText, descriptionEditText, categoryEditText, priceEditText;
     private ImageView[] imageViews;
     private Button[] imageButtons;
@@ -215,124 +232,197 @@ public class AddProductActivity extends AppCompatActivity {
     }
 
     private void uploadProduct() {
-        Log.d(TAG, "Starting product upload");
-        try {
-            if (!validateForm()) {
-                Log.d(TAG, "Form validation failed");
-                return;
-            }
+        if (!validateForm()) return;
 
-            progressBar.setVisibility(View.VISIBLE);
-            submitButton.setEnabled(false);
+        progressBar.setVisibility(View.VISIBLE);
+        submitButton.setEnabled(false);
 
-            String userId = auth.getCurrentUser().getUid();
-            List<String> imageUrls = new ArrayList<>();
-            
-            // Count how many images were selected
-            int totalImages = 0;
-            for (Uri uri : selectedImageUris) {
-                if (uri != null) totalImages++;
-            }
-            Log.d(TAG, "Total images to upload: " + totalImages);
+        String userId = auth.getCurrentUser().getUid();
+        List<String> imageUrls = new ArrayList<>();
 
-            if (totalImages == 0) {
-                Log.d(TAG, "No images selected");
-                Toast.makeText(this, "Please select at least one image", Toast.LENGTH_SHORT).show();
-                progressBar.setVisibility(View.GONE);
-                submitButton.setEnabled(true);
-                return;
-            }
+        // Count and upload images to Firebase Storage first
+        final int totalImages = (int) selectedImageUris.stream().filter(uri -> uri != null).count();
+        if (totalImages == 0) {
+            resetUiWithError("Select at least one image");
+            return;
+        }
 
-            final int finalTotalImages = totalImages;
+        for (Uri uri : selectedImageUris) {
+            if (uri == null) continue;
+            String imageName = UUID.randomUUID().toString();
+            StorageReference ref = storage.getReference()
+                    .child("products")
+                    .child(userId)
+                    .child(imageName);
 
-            // Upload images first
-            for (int i = 0; i < selectedImageUris.size(); i++) {
-                Uri imageUri = selectedImageUris.get(i);
-                if (imageUri != null) {
-                    Log.d(TAG, "Uploading image " + (i + 1) + " of " + totalImages);
-                    String imageName = UUID.randomUUID().toString();
-                    StorageReference imageRef = storage.getReference()
-                            .child("products")
-                            .child(userId)
-                            .child(imageName);
-
-                    imageRef.putFile(imageUri)
-                            .addOnSuccessListener(taskSnapshot -> {
-                                Log.d(TAG, "Image upload successful: " + imageName);
-                                // Get the download URL
-                                imageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                                    Log.d(TAG, "Got download URL: " + uri);
-                                    imageUrls.add(uri.toString());
-                                    
-                                    // If this was the last image, create the product
-                                    if (imageUrls.size() == finalTotalImages) {
-                                        Log.d(TAG, "All images uploaded, creating product");
-                                        createProductInFirestore(imageUrls);
-                                    }
-                                }).addOnFailureListener(e -> {
-                                    Log.e(TAG, "Error getting download URL", e);
-                                    Toast.makeText(AddProductActivity.this,
-                                            "Error getting image URL: " + e.getMessage(),
-                                            Toast.LENGTH_SHORT).show();
-                                    progressBar.setVisibility(View.GONE);
-                                    submitButton.setEnabled(true);
-                                });
-                            })
-                            .addOnFailureListener(e -> {
-                                Log.e(TAG, "Error uploading image", e);
-                                Toast.makeText(AddProductActivity.this,
-                                        "Failed to upload image: " + e.getMessage(),
-                                        Toast.LENGTH_SHORT).show();
-                                progressBar.setVisibility(View.GONE);
-                                submitButton.setEnabled(true);
-                            });
-                }
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error in uploadProduct", e);
-            Toast.makeText(this, "Error uploading product: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            progressBar.setVisibility(View.GONE);
-            submitButton.setEnabled(true);
+            ref.putFile(uri)
+                .addOnSuccessListener(taskSnapshot -> {
+                    ref.getDownloadUrl().addOnSuccessListener(downloadUri -> {
+                        imageUrls.add(downloadUri.toString());
+                        if (imageUrls.size() == totalImages) {
+                            callTrellisAPI(imageUrls, userId);
+                        }
+                    }).addOnFailureListener(e -> {
+                        Log.e(TAG, "Error getting download URL", e);
+                        resetUiWithError("Error getting image URL");
+                    });
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error uploading image", e);
+                    resetUiWithError("Error uploading image");
+                });
         }
     }
 
-    private void createProductInFirestore(List<String> imageUrls) {
-        Log.d(TAG, "Creating product in Firestore");
+    private void callTrellisAPI(List<String> imageUrls, String userId) {
         try {
-            String title = titleEditText.getText().toString().trim();
-            String description = descriptionEditText.getText().toString().trim();
-            String category = categoryEditText.getText().toString().trim();
-            double price = Double.parseDouble(priceEditText.getText().toString().trim());
-            String userId = auth.getCurrentUser().getUid();
+            JSONArray imagesArray = new JSONArray(imageUrls);
 
-            Log.d(TAG, "Product details - Title: " + title + ", Category: " + category + ", Price: " + price);
-            Log.d(TAG, "Number of images: " + imageUrls.size());
+            JSONObject input = new JSONObject()
+                    .put("images",              imagesArray)
+                    .put("texture_size",        2048)
+                    .put("mesh_simplify",       0.9)
+                    .put("ss_sampling_steps",   38)
+                    .put("generate_model",      false) // ✅ no GLB
+                    .put("generate_color",      true)  // ✅ request MP4 video
+                    .put("generate_normal",     false); // ✅ skip normals
 
-            Product product = new Product(title, description, category, price, imageUrls, userId);
+            JSONObject payload = new JSONObject()
+                    .put("version", MODEL_VERSION)
+                    .put("input",   input);
 
-            firestore.collection("products")
-                    .add(product)
-                    .addOnSuccessListener(documentReference -> {
-                        Log.d(TAG, "Product added successfully with ID: " + documentReference.getId());
-                        Toast.makeText(AddProductActivity.this,
-                                "Product added successfully",
-                                Toast.LENGTH_SHORT).show();
-                        finish();
-                    })
-                    .addOnFailureListener(e -> {
-                        Log.e(TAG, "Error adding product to Firestore", e);
-                        Toast.makeText(AddProductActivity.this,
-                                "Failed to add product: " + e.getMessage(),
-                                Toast.LENGTH_SHORT).show();
-                        progressBar.setVisibility(View.GONE);
-                        submitButton.setEnabled(true);
-                    });
-        } catch (Exception e) {
-            Log.e(TAG, "Error in createProductInFirestore", e);
-            Toast.makeText(this, "Error creating product: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            progressBar.setVisibility(View.GONE);
-            submitButton.setEnabled(true);
+            Log.d(TAG, "API Payload (video only): " + payload);
+
+            OkHttpClient client = new OkHttpClient.Builder()
+                    .connectTimeout(60, TimeUnit.SECONDS)
+                    .writeTimeout(60, TimeUnit.SECONDS)
+                    .readTimeout(60, TimeUnit.SECONDS)
+                    .build();
+
+            RequestBody body = RequestBody.create(
+                    payload.toString(),
+                    MediaType.parse("application/json; charset=utf-8")
+            );
+
+            Request request = new Request.Builder()
+                    .url("https://api.replicate.com/v1/predictions")
+                    .addHeader("Authorization", "Bearer " + REPLICATE_TOKEN)
+                    .addHeader("Prefer",        "wait=60")
+                    .post(body)
+                    .build();
+
+            makeApiCall(client, request, imageUrls, userId);
+
+        } catch (JSONException e) {
+            Log.e(TAG, "JSON build error", e);
+            resetUiWithError("Error building API request");
         }
+    }
+
+    private void makeApiCall(OkHttpClient client, Request request, List<String> imageUrls, String userId) {
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.e(TAG, "API call failed", e);
+                runOnUiThread(() -> {
+                    if (e instanceof SocketTimeoutException) {
+                        resetUiWithError("Request timed out. Please try again later.");
+                    } else {
+                        resetUiWithError("Network error: " + e.getMessage());
+                    }
+                });
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (!response.isSuccessful()) {
+                    String errorBody = response.body() != null
+                            ? response.body().string()
+                            : "No response body";
+                    Log.e(TAG, "HTTP error: " + response.code() + " — " + errorBody);
+                    runOnUiThread(() -> resetUiWithError("API error: " + response.code()));
+                    return;
+                }
+
+                try {
+                    // 1. Parse the full prediction object (sync mode returns this) :contentReference[oaicite:2]{index=2}
+                    String resp = response.body().string();
+                    JSONObject prediction = new JSONObject(resp);
+
+                    // 2. 'output' is a JSONObject, not a JSONArray :contentReference[oaicite:3]{index=3}
+                    JSONObject outputObj = prediction.getJSONObject("output");
+
+                    // 3. Safely extract your video URL (combined_video or fallback to color_video)
+                    String videoUrl;
+                    if (outputObj.has("combined_video") &&
+                            !outputObj.isNull("combined_video")) {
+                        videoUrl = outputObj.getString("combined_video");
+                    } else {
+                        videoUrl = outputObj.optString("color_video", null);
+                    }
+
+                    if (videoUrl == null) {
+                        Log.e(TAG, "No video URL in output object");
+                        runOnUiThread(() -> resetUiWithError("No video URL received from API"));
+                        return;
+                    }
+
+                    final String finalVideoUrl = videoUrl;
+
+                    // 4. On the UI thread, build and save your Product with only the MP4 :contentReference[oaicite:4]{index=4}
+                    runOnUiThread(() -> {
+                        String title    = titleEditText.getText().toString().trim();
+                        String desc     = descriptionEditText.getText().toString().trim();
+                        String category = categoryEditText.getText().toString().trim();
+                        String priceStr = priceEditText.getText().toString().trim();
+
+                        double price;
+                        try {
+                            price = Double.parseDouble(priceStr);
+                        } catch (NumberFormatException ex) {
+                            resetUiWithError("Invalid price format");
+                            return;
+                        }
+
+                        // No GLB produced: pass null for model_file :contentReference[oaicite:5]{index=5}
+                        Product product = new Product(
+                                title, desc, category, price,
+                                imageUrls,
+                                null,               // model_file = null
+                                finalVideoUrl,      // MP4 URL
+                                userId
+                        );
+
+                        firestore.collection("products")
+                                .add(product)
+                                .addOnSuccessListener(docRef -> {
+                                    Toast.makeText(
+                                            AddProductActivity.this,
+                                            "Product and video added successfully",
+                                            Toast.LENGTH_SHORT
+                                    ).show();
+                                    finish();
+                                })
+                                .addOnFailureListener(err -> {
+                                    Log.e(TAG, "Error saving product", err);
+                                    resetUiWithError("Error saving product");
+                                });
+                    });
+
+                } catch (JSONException je) {
+                    // Catch when keys are missing or types mismatch :contentReference[oaicite:6]{index=6}
+                    Log.e(TAG, "JSON parse error", je);
+                    runOnUiThread(() -> resetUiWithError("Error parsing API response"));
+                }
+            }
+
+        });
+    }
+
+    private void resetUiWithError(String message) {
+        progressBar.setVisibility(View.GONE);
+        submitButton.setEnabled(true);
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
     private boolean validateForm() {

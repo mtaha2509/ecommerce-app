@@ -182,12 +182,12 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void startSignUpActivity() {
-        Log.d(TAG, "Starting sign up activity");
+        Log.d(TAG, "Starting welcome activity for role selection");
         try {
             startActivity(new Intent(LoginActivity.this, WelcomeActivity.class));
             finish();
         } catch (Exception e) {
-            Log.e(TAG, "Error starting sign up activity", e);
+            Log.e(TAG, "Error starting welcome activity", e);
             Toast.makeText(this, "Error starting sign up", Toast.LENGTH_SHORT).show();
         }
     }

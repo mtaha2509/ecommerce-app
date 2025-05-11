@@ -34,15 +34,10 @@ import androidx.core.content.ContextCompat;
 
 import com.example.ecommerceapp.R;
 import com.example.ecommerceapp.models.Product;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
-import com.google.firebase.storage.UploadTask;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -54,8 +49,8 @@ import java.net.SocketTimeoutException;
 public class AddProductActivity extends AppCompatActivity {
     private static final String TAG = "AddProductActivity";
     private static final int PERMISSION_REQUEST_CODE = 100;
-    private static final String MODEL_VERSION = "4876f2a8da1c544772dffa32e8889da4a1bab3a1f5c1937bfcfccb99ae347251";
-    private static final String REPLICATE_TOKEN = "api_key";
+    private static final String MODEL_VERSION = "key";
+    private static final String REPLICATE_TOKEN = "key";
 
     private EditText titleEditText, descriptionEditText, categoryEditText, priceEditText;
     private ImageView[] imageViews;

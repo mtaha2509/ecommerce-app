@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.example.ecommerceapp.R;
+import com.example.ecommerceapp.activities.ProductListActivity;
 import com.example.ecommerceapp.models.Product;
 
 import java.util.List;
@@ -20,6 +21,8 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
     private Context context;
     private List<Product> productList;
     private OnProductClickListener listener;
+
+
 
     public interface OnProductClickListener {
         void onProductClick(Product product);

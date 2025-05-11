@@ -73,6 +73,12 @@ public class SignUpActivity extends AppCompatActivity {
             return;
         }
 
+        if (password.length() < 6) {
+            Toast.makeText(this, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Log.d(TAG, "Attempting to create user with email: " + email);
         auth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {
@@ -84,32 +90,46 @@ public class SignUpActivity extends AppCompatActivity {
                             userData.put("email", email);
                             userData.put("role", userRole);
 
+                            Log.d(TAG, "Storing user data in Firestore for role: " + userRole);
                             firestore.collection("users")
                                     .document(user.getUid())
                                     .set(userData)
                                     .addOnSuccessListener(aVoid -> {
-                                        Log.d(TAG, "User role stored in Firestore");
+                                        Log.d(TAG, "User role stored in Firestore successfully");
                                         navigateBasedOnRole();
                                     })
                                     .addOnFailureListener(e -> {
-                                        Log.e(TAG, "Error storing user role", e);
-                                        Toast.makeText(SignUpActivity.this, "Error storing user data", Toast.LENGTH_SHORT).show();
+                                        Log.e(TAG, "Error storing user role in Firestore", e);
+                                        Toast.makeText(SignUpActivity.this, 
+                                            "Error storing user data: " + e.getMessage(), 
+                                            Toast.LENGTH_SHORT).show();
                                     });
+                        } else {
+                            Log.e(TAG, "Current user is null after successful signup");
+                            Toast.makeText(SignUpActivity.this, 
+                                "Error: User creation failed", 
+                                Toast.LENGTH_SHORT).show();
                         }
                     } else {
-                        Log.w(TAG, "createUserWithEmail:failure", task.getException());
-                        Toast.makeText(SignUpActivity.this, "Authentication failed: " + task.getException().getMessage(),
+                        Exception exception = task.getException();
+                        Log.e(TAG, "createUserWithEmail:failure", exception);
+                        String errorMessage = "Authentication failed";
+                        if (exception != null) {
+                            errorMessage += ": " + exception.getMessage();
+                        }
+                        Toast.makeText(SignUpActivity.this, errorMessage,
                                 Toast.LENGTH_SHORT).show();
                     }
                 });
     }
 
     private void navigateBasedOnRole() {
+        Log.d(TAG, "Navigating based on role: " + userRole);
         Intent intent;
-        if (userRole.equals("buyer")) {
-            intent = new Intent(SignUpActivity.this, ProductListActivity.class);
-        } else {
+        if (userRole.equals("seller")) {
             intent = new Intent(SignUpActivity.this, MainActivity.class);
+        } else {
+            intent = new Intent(SignUpActivity.this, ProductListActivity.class);
         }
         startActivity(intent);
         finish();

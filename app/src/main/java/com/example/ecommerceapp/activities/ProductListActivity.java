@@ -24,7 +24,7 @@ public class ProductListActivity extends AppCompatActivity implements ProductAda
     private RecyclerView recyclerView;
     private ProgressBar progressBar;
     private ProductAdapter adapter;
-    private List<Product> productList;
+    private List<com.example.ecommerceapp.models.Product> productList;
     private FirebaseFirestore firestore;
     private FirebaseAuth auth;
     private FloatingActionButton fabLogout;
@@ -90,4 +90,5 @@ public class ProductListActivity extends AppCompatActivity implements ProductAda
         intent.putExtra("productId", product.getId());
         startActivity(intent);
     }
-} 
+
+}

@@ -129,7 +129,7 @@ public class SignUpActivity extends AppCompatActivity {
         if (userRole.equals("seller")) {
             intent = new Intent(SignUpActivity.this, MainActivity.class);
         } else {
-            intent = new Intent(SignUpActivity.this, ProductListActivity.class);
+            intent = new Intent(SignUpActivity.this, BuyerMainActivity.class);
         }
         startActivity(intent);
         finish();

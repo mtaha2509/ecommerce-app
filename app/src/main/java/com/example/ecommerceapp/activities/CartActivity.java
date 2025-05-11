@@ -16,6 +16,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.ecommerceapp.R;
 import com.example.ecommerceapp.adapters.CartAdapter;
 import com.example.ecommerceapp.models.CartItem;
+import com.example.ecommerceapp.models.Order;
+import com.example.ecommerceapp.models.OrderItem;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -25,6 +27,7 @@ import com.google.firebase.firestore.FirebaseFirestoreException;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -200,47 +203,43 @@ public class CartActivity extends AppCompatActivity implements CartAdapter.CartI
         }
         
         // Create order document
-        Map<String, Object> order = new HashMap<>();
-        order.put("userId", userId);
-        order.put("orderDate", System.currentTimeMillis());
-        order.put("totalAmount", totalAmount);
-        order.put("status", "Pending");
+        Order order = new Order();
+        order.setUserId(userId);
+        order.setOrderDate(new Date());
+        order.setTotalAmount(totalAmount);
+        order.setStatus("PENDING");
         
+        // Create order items
+        List<OrderItem> orderItems = new ArrayList<>();
+        for (CartItem cartItem : cartItems) {
+            OrderItem orderItem = new OrderItem(
+                cartItem.getProductId(),
+                cartItem.getTitle(),
+                cartItem.getPrice(),
+                cartItem.getQuantity(),
+                cartItem.getImageUrl()
+            );
+            orderItems.add(orderItem);
+        }
+        order.setItems(orderItems);
+        
+        // Save to Firestore
         firestore.collection("orders")
                 .add(order)
                 .addOnSuccessListener(documentReference -> {
                     String orderId = documentReference.getId();
+                    order.setId(orderId);
                     
-                    // Add order items
-                    List<Map<String, Object>> orderItems = new ArrayList<>();
-                    for (CartItem item : cartItems) {
-                        Map<String, Object> orderItem = new HashMap<>();
-                        orderItem.put("productId", item.getProductId());
-                        orderItem.put("title", item.getTitle());
-                        orderItem.put("price", item.getPrice());
-                        orderItem.put("quantity", item.getQuantity());
-                        orderItem.put("imageUrl", item.getImageUrl());
-                        orderItems.add(orderItem);
-                    }
+                    // Clear cart after successful order
+                    clearCart();
                     
-                    documentReference.update("items", orderItems)
-                            .addOnSuccessListener(aVoid -> {
-                                // Clear cart after successful order
-                                clearCart();
-                                
-                                // Show success and navigate to order confirmation
-                                Toast.makeText(CartActivity.this, "Order placed successfully", Toast.LENGTH_SHORT).show();
-                                Intent intent = new Intent(CartActivity.this, OrderConfirmationActivity.class);
-                                intent.putExtra("orderId", orderId);
-                                intent.putExtra("totalAmount", totalAmount);
-                                startActivity(intent);
-                                finish();
-                            })
-                            .addOnFailureListener(e -> {
-                                Log.e(TAG, "Error adding order items", e);
-                                Toast.makeText(CartActivity.this, "Error processing order: " + e.getMessage(), 
-                                        Toast.LENGTH_SHORT).show();
-                            });
+                    // Show success and navigate to order confirmation
+                    Toast.makeText(CartActivity.this, "Order placed successfully", Toast.LENGTH_SHORT).show();
+                    Intent intent = new Intent(CartActivity.this, OrderConfirmationActivity.class);
+                    intent.putExtra("orderId", orderId);
+                    intent.putExtra("totalAmount", totalAmount);
+                    startActivity(intent);
+                    finish();
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error creating order", e);

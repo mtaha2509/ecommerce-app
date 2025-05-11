@@ -69,7 +69,7 @@ public class SplashActivity extends AppCompatActivity {
                                 Log.d(TAG, "User role found: " + role);
                                 if (role != null) {
                                     if (role.equals("buyer")) {
-                                        startActivity(new Intent(SplashActivity.this, ProductListActivity.class));
+                                        startActivity(new Intent(SplashActivity.this, BuyerMainActivity.class));
                                     } else {
                                         startActivity(new Intent(SplashActivity.this, MainActivity.class));
                                     }

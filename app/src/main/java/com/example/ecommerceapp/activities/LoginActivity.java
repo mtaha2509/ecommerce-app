@@ -71,7 +71,7 @@ public class LoginActivity extends AppCompatActivity {
                                 if (role != null) {
                                     Intent intent;
                                     if (role.equals("buyer")) {
-                                        intent = new Intent(LoginActivity.this, ProductListActivity.class);
+                                        intent = new Intent(LoginActivity.this, BuyerMainActivity.class);
                                     } else {
                                         intent = new Intent(LoginActivity.this, MainActivity.class);
                                     }

@@ -15,12 +15,14 @@ import com.bumptech.glide.Glide;
 import com.example.ecommerceapp.R;
 import com.example.ecommerceapp.adapters.ImagePagerAdapter;
 import com.example.ecommerceapp.models.CartItem;
+import com.example.ecommerceapp.models.Conversation;
 import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.MediaItem;
 import com.google.android.exoplayer2.ui.StyledPlayerView;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
@@ -32,7 +34,7 @@ public class ProductDetailActivity extends AppCompatActivity {
     private ViewPager2 viewPager;
     private StyledPlayerView videoPlayer;
     private TextView tvProductTitle, tvProductPrice, tvProductDescription, tvQuantity;
-    private Button btnAddToCart, btnViewCart, btnDecrease, btnIncrease;
+    private Button btnAddToCart, btnViewCart, btnDecrease, btnIncrease, btnContactSeller;
     private ExoPlayer exoPlayer;
     private FirebaseFirestore firestore;
     private FirebaseAuth mAuth;
@@ -41,6 +43,7 @@ public class ProductDetailActivity extends AppCompatActivity {
     private double productPrice;
     private List<String> imageUrls;
     private int quantity = 1;
+    private String sellerId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,6 +91,7 @@ public class ProductDetailActivity extends AppCompatActivity {
         btnDecrease = findViewById(R.id.btnDecrease);
         btnIncrease = findViewById(R.id.btnIncrease);
         tvQuantity = findViewById(R.id.tvQuantity);
+        btnContactSeller = findViewById(R.id.btnContactSeller);
 
         // Initialize ExoPlayer
         exoPlayer = new ExoPlayer.Builder(this).build();
@@ -101,6 +105,7 @@ public class ProductDetailActivity extends AppCompatActivity {
         btnViewCart.setOnClickListener(v -> viewCart());
         btnIncrease.setOnClickListener(v -> increaseQuantity());
         btnDecrease.setOnClickListener(v -> decreaseQuantity());
+        btnContactSeller.setOnClickListener(v -> initiateChat());
     }
 
     private void increaseQuantity() {
@@ -126,6 +131,7 @@ public class ProductDetailActivity extends AppCompatActivity {
                         productPrice = documentSnapshot.getDouble("price");
                         imageUrls = (List<String>) documentSnapshot.get("imageUrls");
                         String videoUrl = documentSnapshot.getString("videoUrl");
+                        sellerId = documentSnapshot.getString("userId");
 
                         tvProductTitle.setText(productTitle);
                         tvProductDescription.setText(description);
@@ -144,6 +150,9 @@ public class ProductDetailActivity extends AppCompatActivity {
                             exoPlayer.setMediaItem(mediaItem);
                             exoPlayer.prepare();
                         }
+                        
+                        // Setup contact seller button visibility
+                        setupContactButton();
                     } else {
                         Toast.makeText(this, "Product not found", Toast.LENGTH_SHORT).show();
                         finish();
@@ -153,6 +162,111 @@ public class ProductDetailActivity extends AppCompatActivity {
                     Log.e(TAG, "Error loading product details", e);
                     Toast.makeText(this, "Error loading product details", Toast.LENGTH_SHORT).show();
                 });
+    }
+    
+    private void setupContactButton() {
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+        
+        // Only show contact button for buyers (hide for sellers)
+        if (currentUser != null && !currentUser.getUid().equals(sellerId)) {
+            btnContactSeller.setVisibility(View.VISIBLE);
+        } else {
+            btnContactSeller.setVisibility(View.GONE);
+        }
+    }
+    
+    private void initiateChat() {
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+        if (currentUser == null) {
+            Toast.makeText(this, "Please login to contact the seller", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // First check if a conversation already exists
+        firestore.collection("conversations")
+                .whereEqualTo("buyerId", currentUser.getUid())
+                .whereEqualTo("sellerId", sellerId)
+                .whereEqualTo("productId", productId)
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    if (!queryDocumentSnapshots.isEmpty()) {
+                        // Conversation exists, open it
+                        DocumentSnapshot doc = queryDocumentSnapshots.getDocuments().get(0);
+                        Conversation conversation = doc.toObject(Conversation.class);
+                        conversation.setId(doc.getId());
+                        openChatActivity(conversation);
+                    } else {
+                        // Create new conversation
+                        createNewConversation();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error checking existing conversations", e);
+                    Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+    }
+    
+    private void createNewConversation() {
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+        
+        // First get seller's name
+        firestore.collection("users").document(sellerId)
+                .get()
+                .addOnSuccessListener(sellerDoc -> {
+                    if (sellerDoc.exists()) {
+                        // Get buyer's name
+                        firestore.collection("users").document(currentUser.getUid())
+                                .get()
+                                .addOnSuccessListener(buyerDoc -> {
+                                    if (buyerDoc.exists()) {
+                                        String sellerName = sellerDoc.getString("name");
+                                        String buyerName = buyerDoc.getString("name");
+                                        
+                                        if (sellerName == null) sellerName = "Seller";
+                                        if (buyerName == null) buyerName = "Buyer";
+                                        
+                                        // Create conversation
+                                        Conversation conversation = new Conversation(
+                                                currentUser.getUid(),
+                                                sellerId,
+                                                buyerName,
+                                                sellerName,
+                                                productId,
+                                                productTitle
+                                        );
+                                        
+                                        // Add to Firestore
+                                        firestore.collection("conversations")
+                                                .add(conversation)
+                                                .addOnSuccessListener(documentReference -> {
+                                                    conversation.setId(documentReference.getId());
+                                                    openChatActivity(conversation);
+                                                })
+                                                .addOnFailureListener(e -> {
+                                                    Log.e(TAG, "Error creating conversation", e);
+                                                    Toast.makeText(ProductDetailActivity.this, 
+                                                            "Failed to create conversation", 
+                                                            Toast.LENGTH_SHORT).show();
+                                                });
+                                    }
+                                });
+                    } else {
+                        Toast.makeText(this, "Could not find seller information", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error getting seller information", e);
+                    Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+    }
+    
+    private void openChatActivity(Conversation conversation) {
+        Intent intent = new Intent(this, ChatActivity.class);
+        intent.putExtra("conversationId", conversation.getId());
+        intent.putExtra("otherUserName", conversation.getSellerName());
+        intent.putExtra("productId", conversation.getProductId());
+        intent.putExtra("productTitle", conversation.getProductTitle());
+        startActivity(intent);
     }
 
     private void addToCart() {

@@ -41,6 +41,9 @@
             android:name=".MainActivity"
             android:exported="false" />
         <activity
+            android:name=".activities.BuyerMainActivity"
+            android:exported="false" />
+        <activity
             android:name=".activities.ProductListActivity"
             android:exported="false" />
         <activity
@@ -54,6 +57,9 @@
             android:exported="false" />
         <activity
             android:name=".activities.OrderConfirmationActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.ChatActivity"
             android:exported="false" />
     </application>
 

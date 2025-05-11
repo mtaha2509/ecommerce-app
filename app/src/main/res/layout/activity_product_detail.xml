@@ -43,7 +43,8 @@
             android:textColor="@color/design_default_color_primary"
             android:textSize="20sp"
             android:textStyle="bold"
-            app:layout_constraintTop_toBottomOf="@id/tvProductTitle" />
+            app:layout_constraintTop_toBottomOf="@id/tvProductTitle"
+            app:layout_constraintStart_toStartOf="parent" />
 
         <!-- Description -->
         <TextView
@@ -53,18 +54,80 @@
             android:layout_marginTop="16dp"
             android:textSize="16sp"
             app:layout_constraintTop_toBottomOf="@id/tvProductPrice" />
+            
+        <!-- Quantity Controls -->
+        <TextView
+            android:id="@+id/tvQuantityLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Quantity:"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="24dp"
+            app:layout_constraintTop_toBottomOf="@id/tvProductDescription"
+            app:layout_constraintStart_toStartOf="parent" />
+            
+        <LinearLayout
+            android:id="@+id/quantityContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp"
+            app:layout_constraintTop_toBottomOf="@id/tvQuantityLabel"
+            app:layout_constraintStart_toStartOf="parent">
+            
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDecrease"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="-"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                app:cornerRadius="24dp" />
+                
+            <TextView
+                android:id="@+id/tvQuantity"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="1"
+                android:textSize="18sp"
+                android:gravity="center"
+                android:background="@android:color/transparent" />
+                
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnIncrease"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="+"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                app:cornerRadius="24dp" />
+        </LinearLayout>
 
         <!-- Add to Cart Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnAddToCart"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:layout_marginBottom="16dp"
+            android:layout_marginEnd="8dp"
             android:padding="12dp"
             android:text="Add to Cart"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvProductDescription" />
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btnViewCart"
+            app:layout_constraintTop_toBottomOf="@id/quantityContainer" />
+            
+        <!-- View Cart Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnViewCart"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:padding="12dp"
+            android:text="View Cart"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/quantityContainer"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.core.widget.NestedScrollView> 

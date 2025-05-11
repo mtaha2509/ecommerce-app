@@ -49,6 +49,12 @@
         <activity
             android:name=".activities.ProductDetailActivity"
             android:exported="false" />
+        <activity
+            android:name=".activities.CartActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.OrderConfirmationActivity"
+            android:exported="false" />
     </application>
 
 </manifest>

@@ -76,6 +76,15 @@
         <activity
             android:name=".activities.AddressManagementActivity"
             android:exported="false" />
+        <activity
+            android:name=".activities.AddReviewActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.EditProductActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.ReviewsActivity"
+            android:exported="false" />
     </application>
 
 </manifest>

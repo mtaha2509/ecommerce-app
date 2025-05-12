@@ -1,5 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <!-- Primary Colors -->
+    <color name="primary">#f95406</color>          <!-- Orange - Main brand color -->
+    <color name="primary_light">#fb7b34</color>    <!-- Light Orange - Secondary brand color -->
+    <color name="primary_dark">#1e1e1f</color>     <!-- Black - Dark elements -->
+    <color name="white">#FFFFFF</color>            <!-- White - Background and text -->
+
+    <!-- Text Colors -->
+    <color name="text_primary">#1e1e1f</color>     <!-- Black - Primary text -->
+    <color name="text_secondary">#757575</color>   <!-- Grey - Secondary text -->
+    <color name="text_on_primary">#FFFFFF</color>  <!-- White - Text on primary color -->
+    <color name="text_on_light">#1e1e1f</color>    <!-- Black - Text on light background -->
+
+    <!-- Background Colors -->
+    <color name="background">#FFFFFF</color>       <!-- White - Main background -->
+    <color name="surface">#FFFFFF</color>          <!-- White - Surface elements -->
+    <color name="background_light">#FFF5F0</color> <!-- Very light orange - Secondary background -->
+
+    <!-- Status Colors -->
+    <color name="success">#4CAF50</color>          <!-- Green - Success states -->
+    <color name="error">#F44336</color>            <!-- Red - Error states -->
+    <color name="warning">#FFC107</color>          <!-- Yellow - Warning states -->
+
+    <!-- Component Colors -->
+    <color name="divider">#E0E0E0</color>          <!-- Light grey - Dividers -->
+    <color name="ripple">#1F000000</color>         <!-- Black with 12% opacity - Ripple effect -->
+    <color name="card_background">#FFFFFF</color>  <!-- White - Card backgrounds -->
+    <color name="chip_background">#FFF5F0</color>  <!-- Very light orange - Chip backgrounds -->
+    <color name="black">#000000</color>
 </resources>

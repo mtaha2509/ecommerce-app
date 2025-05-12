@@ -2,15 +2,19 @@ package com.example.ecommerceapp.fragments;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.SearchView;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
@@ -22,15 +26,17 @@ import com.example.ecommerceapp.activities.CartActivity;
 import com.example.ecommerceapp.activities.ProductDetailActivity;
 import com.example.ecommerceapp.adapters.ProductAdapter;
 import com.example.ecommerceapp.models.Product;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.android.material.slider.RangeSlider;
+import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -45,7 +51,9 @@ public class ProductsFragment extends Fragment implements ProductAdapter.OnProdu
     private SearchView searchView;
     private ChipGroup categoryChipGroup;
     private FloatingActionButton fabCart;
-    private RangeSlider priceRangeSlider;
+    private TextView btnApplyFilters;
+    private TextView tvSortBy;
+    private ChipGroup activeFiltersChipGroup;
     
     private ProductAdapter adapter;
     private List<Product> productList;
@@ -59,6 +67,9 @@ public class ProductsFragment extends Fragment implements ProductAdapter.OnProdu
     private String sortBy = "timestamp";
     private boolean sortAscending = false;
     private Set<String> categoriesList = new HashSet<>();
+    private String currentQuery = "";
+    private String sortLabel = "Newest First";
+    private boolean hasActiveFilters = false;
     
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -79,7 +90,9 @@ public class ProductsFragment extends Fragment implements ProductAdapter.OnProdu
         searchView = view.findViewById(R.id.searchView);
         categoryChipGroup = view.findViewById(R.id.categoryChipGroup);
         fabCart = view.findViewById(R.id.fabCart);
-        priceRangeSlider = view.findViewById(R.id.priceRangeSlider);
+        btnApplyFilters = view.findViewById(R.id.btnApplyFilters);
+        tvSortBy = view.findViewById(R.id.tvSortBy);
+        activeFiltersChipGroup = view.findViewById(R.id.activeFiltersChipGroup);
         
         // Initialize lists
         productList = new ArrayList<>();
@@ -98,16 +111,24 @@ public class ProductsFragment extends Fragment implements ProductAdapter.OnProdu
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
-                filterProducts(query);
+                currentQuery = query;
+                filterProducts();
                 return true;
             }
             
             @Override
             public boolean onQueryTextChange(String newText) {
-                filterProducts(newText);
+                currentQuery = newText;
+                filterProducts();
                 return true;
             }
         });
+        
+        // Setup filter button
+        btnApplyFilters.setOnClickListener(v -> showFilterDialog());
+        
+        // Setup sort button
+        tvSortBy.setOnClickListener(v -> showSortDialog());
         
         // Setup cart button
         fabCart.setOnClickListener(v -> {
@@ -115,17 +136,186 @@ public class ProductsFragment extends Fragment implements ProductAdapter.OnProdu
             startActivity(intent);
         });
         
-        // Setup price range slider
-        priceRangeSlider.addOnChangeListener((slider, value, fromUser) -> {
-            if (fromUser) {
-                minPrice = slider.getValues().get(0);
-                maxPrice = slider.getValues().get(1);
-                applyFilters();
-            }
-        });
-        
         // Load products
         loadProducts();
+    }
+    
+    private void showFilterDialog() {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_filter_products, null);
+        
+        TextInputEditText etMinPrice = dialogView.findViewById(R.id.etMinPrice);
+        TextInputEditText etMaxPrice = dialogView.findViewById(R.id.etMaxPrice);
+        AutoCompleteTextView spinnerSortBy = dialogView.findViewById(R.id.spinnerSortBy);
+        MaterialButton btnReset = dialogView.findViewById(R.id.btnReset);
+        MaterialButton btnApply = dialogView.findViewById(R.id.btnApply);
+        
+        // Set current values
+        if (minPrice > 0) {
+            etMinPrice.setText(String.valueOf(minPrice));
+        }
+        
+        if (maxPrice < Float.MAX_VALUE) {
+            etMaxPrice.setText(String.valueOf(maxPrice));
+        }
+        
+        // Setup sort options dropdown
+        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(
+                requireContext(), R.array.sort_options, android.R.layout.simple_dropdown_item_1line);
+        spinnerSortBy.setAdapter(adapter);
+        spinnerSortBy.setText(sortLabel, false);
+        
+        AlertDialog dialog = new AlertDialog.Builder(requireContext())
+                .setView(dialogView)
+                .create();
+        
+        // Reset button click
+        btnReset.setOnClickListener(v -> {
+            etMinPrice.setText("");
+            etMaxPrice.setText("");
+            spinnerSortBy.setText(adapter.getItem(0), false);
+        });
+        
+        // Apply button click
+        btnApply.setOnClickListener(v -> {
+            // Get min price
+            String minPriceStr = etMinPrice.getText().toString().trim();
+            if (!TextUtils.isEmpty(minPriceStr)) {
+                try {
+                    minPrice = Float.parseFloat(minPriceStr);
+                } catch (NumberFormatException e) {
+                    minPrice = 0;
+                }
+            } else {
+                minPrice = 0;
+            }
+            
+            // Get max price
+            String maxPriceStr = etMaxPrice.getText().toString().trim();
+            if (!TextUtils.isEmpty(maxPriceStr)) {
+                try {
+                    maxPrice = Float.parseFloat(maxPriceStr);
+                } catch (NumberFormatException e) {
+                    maxPrice = Float.MAX_VALUE;
+                }
+            } else {
+                maxPrice = Float.MAX_VALUE;
+            }
+            
+            // Get sort option
+            String selectedSort = spinnerSortBy.getText().toString();
+            sortLabel = selectedSort;
+            
+            if (selectedSort.equals("Newest First")) {
+                sortBy = "timestamp";
+                sortAscending = false;
+            } else if (selectedSort.equals("Price: Low to High")) {
+                sortBy = "price";
+                sortAscending = true;
+            } else if (selectedSort.equals("Price: High to Low")) {
+                sortBy = "price";
+                sortAscending = false;
+            } else if (selectedSort.equals("Rating: High to Low")) {
+                sortBy = "averageRating";
+                sortAscending = false;
+            }
+            
+            // Apply filters
+            updateActiveFiltersChips();
+            filterProducts();
+            dialog.dismiss();
+        });
+        
+        dialog.show();
+    }
+    
+    private void showSortDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setTitle("Sort By");
+        
+        String[] sortOptions = getResources().getStringArray(R.array.sort_options);
+        
+        // Find the current sort option index
+        int selectedIndex = 0;
+        for (int i = 0; i < sortOptions.length; i++) {
+            if (sortOptions[i].equals(sortLabel)) {
+                selectedIndex = i;
+                break;
+            }
+        }
+        
+        builder.setSingleChoiceItems(sortOptions, selectedIndex, (dialog, which) -> {
+            String selectedSort = sortOptions[which];
+            sortLabel = selectedSort;
+            
+            if (selectedSort.equals("Newest First")) {
+                sortBy = "timestamp";
+                sortAscending = false;
+            } else if (selectedSort.equals("Price: Low to High")) {
+                sortBy = "price";
+                sortAscending = true;
+            } else if (selectedSort.equals("Price: High to Low")) {
+                sortBy = "price";
+                sortAscending = false;
+            } else if (selectedSort.equals("Rating: High to Low")) {
+                sortBy = "averageRating";
+                sortAscending = false;
+            }
+            
+            updateActiveFiltersChips();
+            filterProducts();
+            dialog.dismiss();
+        });
+        
+        builder.show();
+    }
+    
+    private void updateActiveFiltersChips() {
+        activeFiltersChipGroup.removeAllViews();
+        hasActiveFilters = false;
+        
+        // Add price filter chip if applicable
+        if (minPrice > 0 || maxPrice < Float.MAX_VALUE) {
+            hasActiveFilters = true;
+            
+            String priceLabel;
+            if (minPrice > 0 && maxPrice < Float.MAX_VALUE) {
+                priceLabel = "$" + minPrice + " - $" + maxPrice;
+            } else if (minPrice > 0) {
+                priceLabel = "$" + minPrice + " & up";
+            } else {
+                priceLabel = "Up to $" + maxPrice;
+            }
+            
+            Chip priceChip = new Chip(requireContext());
+            priceChip.setText(priceLabel);
+            priceChip.setCloseIconVisible(true);
+            priceChip.setOnCloseIconClickListener(v -> {
+                minPrice = 0;
+                maxPrice = Float.MAX_VALUE;
+                updateActiveFiltersChips();
+                filterProducts();
+            });
+            activeFiltersChipGroup.addView(priceChip);
+        }
+        
+        // Add sort chip
+        if (!sortLabel.equals("Newest First")) {
+            hasActiveFilters = true;
+            
+            Chip sortChip = new Chip(requireContext());
+            sortChip.setText(sortLabel);
+            sortChip.setCloseIconVisible(true);
+            sortChip.setOnCloseIconClickListener(v -> {
+                sortBy = "timestamp";
+                sortAscending = false;
+                sortLabel = "Newest First";
+                updateActiveFiltersChips();
+                filterProducts();
+            });
+            activeFiltersChipGroup.addView(sortChip);
+        }
+        
+        activeFiltersChipGroup.setVisibility(hasActiveFilters ? View.VISIBLE : View.GONE);
     }
     
     private void loadProducts() {
@@ -133,13 +323,10 @@ public class ProductsFragment extends Fragment implements ProductAdapter.OnProdu
         emptyView.setVisibility(View.GONE);
         
         firestore.collection("products")
-                .orderBy(sortBy, sortAscending ? Query.Direction.ASCENDING : Query.Direction.DESCENDING)
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     productList.clear();
                     categoriesList.clear();
-                    
-                    float maxPriceValue = 0;
                     
                     for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
                         Product product = document.toObject(Product.class);
@@ -150,23 +337,13 @@ public class ProductsFragment extends Fragment implements ProductAdapter.OnProdu
                         if (product.getCategory() != null && !product.getCategory().isEmpty()) {
                             categoriesList.add(product.getCategory());
                         }
-                        
-                        // Track maximum price for slider
-                        if (product.getPrice() > maxPriceValue) {
-                            maxPriceValue = (float) product.getPrice();
-                        }
                     }
-                    
-                    // Setup price range slider values
-                    priceRangeSlider.setValueFrom(0);
-                    priceRangeSlider.setValueTo(maxPriceValue > 0 ? maxPriceValue : 1000);
-                    priceRangeSlider.setValues(0f, maxPriceValue > 0 ? maxPriceValue : 1000);
                     
                     // Setup category chips
                     setupCategoryChips();
                     
-                    // Apply initial filters
-                    applyFilters();
+                    // Apply filters
+                    filterProducts();
                     
                     progressBar.setVisibility(View.GONE);
                     swipeRefreshLayout.setRefreshing(false);
@@ -187,9 +364,10 @@ public class ProductsFragment extends Fragment implements ProductAdapter.OnProdu
         allChip.setText("All");
         allChip.setCheckable(true);
         allChip.setChecked(currentCategory.isEmpty());
+        allChip.setChipBackgroundColorResource(R.color.chip_background);
         allChip.setOnClickListener(v -> {
             currentCategory = "";
-            applyFilters();
+            filterProducts();
         });
         categoryChipGroup.addView(allChip);
         
@@ -199,17 +377,18 @@ public class ProductsFragment extends Fragment implements ProductAdapter.OnProdu
             chip.setText(category);
             chip.setCheckable(true);
             chip.setChecked(category.equals(currentCategory));
+            chip.setChipBackgroundColorResource(R.color.chip_background);
             
             chip.setOnClickListener(v -> {
                 currentCategory = category;
-                applyFilters();
+                filterProducts();
             });
             
             categoryChipGroup.addView(chip);
         }
     }
     
-    private void applyFilters() {
+    private void filterProducts() {
         filteredList.clear();
         
         for (Product product : productList) {
@@ -220,10 +399,29 @@ public class ProductsFragment extends Fragment implements ProductAdapter.OnProdu
             // Apply price filter
             boolean priceMatch = product.getPrice() >= minPrice && product.getPrice() <= maxPrice;
             
-            if (categoryMatch && priceMatch) {
+            // Apply search filter
+            boolean searchMatch = true;
+            if (!currentQuery.isEmpty()) {
+                searchMatch = false;
+                String lowercaseQuery = currentQuery.toLowerCase();
+                
+                boolean titleMatch = product.getTitle() != null && 
+                        product.getTitle().toLowerCase().contains(lowercaseQuery);
+                boolean descriptionMatch = product.getDescription() != null && 
+                        product.getDescription().toLowerCase().contains(lowercaseQuery);
+                boolean categoryTextMatch = product.getCategory() != null && 
+                        product.getCategory().toLowerCase().contains(lowercaseQuery);
+                
+                searchMatch = titleMatch || descriptionMatch || categoryTextMatch;
+            }
+            
+            if (categoryMatch && priceMatch && searchMatch) {
                 filteredList.add(product);
             }
         }
+        
+        // Apply sorting
+        sortFilteredList();
         
         if (filteredList.isEmpty()) {
             showEmptyView("No products match your filters");
@@ -235,39 +433,23 @@ public class ProductsFragment extends Fragment implements ProductAdapter.OnProdu
         adapter.notifyDataSetChanged();
     }
     
-    private void filterProducts(String query) {
-        if (query.isEmpty()) {
-            applyFilters();
-            return;
+    private void sortFilteredList() {
+        if (sortBy.equals("price")) {
+            Collections.sort(filteredList, (p1, p2) -> {
+                int result = Double.compare(p1.getPrice(), p2.getPrice());
+                return sortAscending ? result : -result;
+            });
+        } else if (sortBy.equals("timestamp")) {
+            Collections.sort(filteredList, (p1, p2) -> {
+                int result = Long.compare(p1.getTimestamp(), p2.getTimestamp());
+                return sortAscending ? result : -result;
+            });
+        } else if (sortBy.equals("averageRating")) {
+            Collections.sort(filteredList, (p1, p2) -> {
+                int result = Float.compare(p1.getAverageRating(), p2.getAverageRating());
+                return sortAscending ? result : -result;
+            });
         }
-        
-        List<Product> searchFilteredList = new ArrayList<>();
-        String lowercaseQuery = query.toLowerCase();
-        
-        for (Product product : filteredList) {
-            boolean titleMatch = product.getTitle() != null && 
-                    product.getTitle().toLowerCase().contains(lowercaseQuery);
-            boolean descriptionMatch = product.getDescription() != null && 
-                    product.getDescription().toLowerCase().contains(lowercaseQuery);
-            boolean categoryMatch = product.getCategory() != null && 
-                    product.getCategory().toLowerCase().contains(lowercaseQuery);
-            
-            if (titleMatch || descriptionMatch || categoryMatch) {
-                searchFilteredList.add(product);
-            }
-        }
-        
-        filteredList.clear();
-        filteredList.addAll(searchFilteredList);
-        
-        if (filteredList.isEmpty()) {
-            showEmptyView("No products match your search");
-        } else {
-            emptyView.setVisibility(View.GONE);
-            recyclerView.setVisibility(View.VISIBLE);
-        }
-        
-        adapter.notifyDataSetChanged();
     }
     
     private void showEmptyView(String message) {

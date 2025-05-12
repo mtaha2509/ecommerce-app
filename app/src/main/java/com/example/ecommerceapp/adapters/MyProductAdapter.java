@@ -4,8 +4,8 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageView;
-import android.widget.RatingBar;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -16,45 +16,48 @@ import com.bumptech.glide.load.resource.bitmap.CenterCrop;
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners;
 import com.bumptech.glide.request.RequestOptions;
 import com.example.ecommerceapp.R;
-import com.example.ecommerceapp.activities.ProductListActivity;
 import com.example.ecommerceapp.models.Product;
 
 import java.util.List;
 
-public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductViewHolder> {
+public class MyProductAdapter extends RecyclerView.Adapter<MyProductAdapter.MyProductViewHolder> {
     private Context context;
     private List<Product> productList;
-    private OnProductClickListener listener;
+    private OnProductActionListener listener;
 
-
-
-    public interface OnProductClickListener {
+    public interface OnProductActionListener {
         void onProductClick(Product product);
+        void onEditClick(Product product);
+        void onDeleteClick(Product product);
     }
 
-    public ProductAdapter(Context context, List<Product> productList) {
+    public MyProductAdapter(Context context, List<Product> productList) {
         this.context = context;
         this.productList = productList;
     }
 
-    public void setOnProductClickListener(OnProductClickListener listener) {
+    public void setOnProductActionListener(OnProductActionListener listener) {
         this.listener = listener;
     }
 
     @NonNull
     @Override
-    public ProductViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(context).inflate(R.layout.item_product, parent, false);
-        return new ProductViewHolder(view);
+    public MyProductViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(context).inflate(R.layout.item_my_product, parent, false);
+        return new MyProductViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull ProductViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull MyProductViewHolder holder, int position) {
         Product product = productList.get(position);
         
-        // Load the first image if available
+        // Set product details
+        holder.titleTextView.setText(product.getTitle());
+        holder.priceTextView.setText(String.format("$%.2f", product.getPrice()));
+        holder.categoryTextView.setText(product.getCategory());
+        
+        // Load product image if available
         if (product.getImageUrls() != null && !product.getImageUrls().isEmpty()) {
-            // Use Glide with rounded corners for better look
             RequestOptions requestOptions = new RequestOptions()
                     .transforms(new CenterCrop(), new RoundedCorners(12));
             
@@ -65,28 +68,25 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
                     .error(R.drawable.placeholder_image)
                     .into(holder.imageView);
         } else {
-            // Use placeholder if no image is available
             holder.imageView.setImageResource(R.drawable.placeholder_image);
         }
-
-        holder.titleTextView.setText(product.getTitle());
-        holder.priceTextView.setText(String.format("$%.2f", product.getPrice()));
         
-        // Set rating information
-        if (product.getReviewCount() > 0) {
-            holder.ratingBar.setRating(product.getAverageRating());
-            holder.ratingCountTextView.setText(String.format("(%d)", product.getReviewCount()));
-            holder.ratingBar.setVisibility(View.VISIBLE);
-            holder.ratingCountTextView.setVisibility(View.VISIBLE);
-        } else {
-            holder.ratingBar.setVisibility(View.INVISIBLE);
-            holder.ratingCountTextView.setText("(No reviews)");
-        }
-
-        // Set click listener
+        // Set click listeners
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) {
                 listener.onProductClick(product);
+            }
+        });
+        
+        holder.editButton.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onEditClick(product);
+            }
+        });
+        
+        holder.deleteButton.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onDeleteClick(product);
             }
         });
     }
@@ -96,20 +96,22 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
         return productList.size();
     }
 
-    static class ProductViewHolder extends RecyclerView.ViewHolder {
+    static class MyProductViewHolder extends RecyclerView.ViewHolder {
         ImageView imageView;
         TextView titleTextView;
         TextView priceTextView;
-        RatingBar ratingBar;
-        TextView ratingCountTextView;
+        TextView categoryTextView;
+        Button editButton;
+        Button deleteButton;
 
-        ProductViewHolder(@NonNull View itemView) {
+        MyProductViewHolder(@NonNull View itemView) {
             super(itemView);
             imageView = itemView.findViewById(R.id.iv_product);
             titleTextView = itemView.findViewById(R.id.tv_title);
             priceTextView = itemView.findViewById(R.id.tv_price);
-            ratingBar = itemView.findViewById(R.id.rating_bar);
-            ratingCountTextView = itemView.findViewById(R.id.tv_rating_count);
+            categoryTextView = itemView.findViewById(R.id.tv_category);
+            editButton = itemView.findViewById(R.id.btn_edit);
+            deleteButton = itemView.findViewById(R.id.btn_delete);
         }
     }
 } 

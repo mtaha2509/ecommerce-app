@@ -1,29 +1,25 @@
 package com.example.ecommerceapp.activities;
 
-
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;                      // OkHttp classes :contentReference[oaicite:4]{index=4}
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 import android.Manifest;
+import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.Button;
-import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -32,59 +28,80 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
+import com.bumptech.glide.Glide;
 import com.example.ecommerceapp.R;
 import com.example.ecommerceapp.models.Product;
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.net.SocketTimeoutException;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class AddProductActivity extends AppCompatActivity {
     private static final String TAG = "AddProductActivity";
     private static final int PERMISSION_REQUEST_CODE = 100;
     private static final String MODEL_VERSION = "key";
     private static final String REPLICATE_TOKEN = "key";
+    private static final int MAX_IMAGES = 4;
 
-    private EditText titleEditText, descriptionEditText, categoryEditText, priceEditText;
-    private ImageView[] imageViews;
-    private Button[] imageButtons;
-    private Button submitButton;
-    private ProgressBar progressBar;
-    private List<Uri> selectedImageUris;
+    // UI Components
+    private MaterialToolbar toolbar;
+    private TextInputEditText etTitle, etDescription, etPrice;
+    private AutoCompleteTextView dropdownCategory;
+    private MaterialButton btnAddProduct, btnPickGallery, btnTakePhoto, btnGenerateVideo;
+    private ProgressBar progressBar, progressVideo;
+    private LinearLayout selectedImagesLayout;
+    private View selectedImagesContainer;
+    private TextView tvVideoStatus;
+
+    // Firebase
     private FirebaseStorage storage;
     private FirebaseFirestore firestore;
     private FirebaseAuth auth;
-    private int currentButtonIndex = -1;
+    
+    // Data
+    private List<Uri> selectedImageUris;
+    private boolean isVideoGenerationRequested = false;
 
-    private final ActivityResultLauncher<Intent> imagePickerLauncher = registerForActivityResult(
+    // Activity Result Launchers
+    private final ActivityResultLauncher<Intent> galleryLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
-                Log.d(TAG, "Image picker result received");
                 if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-                    try {
-                        Uri imageUri = result.getData().getData();
-                        Log.d(TAG, "Selected image URI: " + imageUri);
-                        if (imageUri != null && currentButtonIndex >= 0 && currentButtonIndex < imageViews.length) {
-                            imageViews[currentButtonIndex].setImageURI(imageUri);
-                            selectedImageUris.set(currentButtonIndex, imageUri);
-                            Log.d(TAG, "Image set successfully for index: " + currentButtonIndex);
-                        } else {
-                            Log.e(TAG, "Invalid image URI or button index");
-                            Toast.makeText(this, "Error selecting image", Toast.LENGTH_SHORT).show();
-                        }
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error handling image picker result", e);
-                        Toast.makeText(this, "Error selecting image", Toast.LENGTH_SHORT).show();
-                    }
-                } else {
-                    Log.d(TAG, "Image picker cancelled or failed");
+                    handleGalleryResult(result.getData());
+                }
+            });
+    
+    private final ActivityResultLauncher<Intent> cameraLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK) {
+                    // Handle camera result
+                    // Note: This would require additional implementation for camera capture
+                    // which is beyond the scope of this fix
+                    Toast.makeText(this, "Camera capture not implemented yet", Toast.LENGTH_SHORT).show();
                 }
             });
 
@@ -122,37 +139,40 @@ public class AddProductActivity extends AppCompatActivity {
     private void initializeViews() {
         Log.d(TAG, "Initializing views");
         try {
-            titleEditText = findViewById(R.id.et_title);
-            descriptionEditText = findViewById(R.id.et_description);
-            categoryEditText = findViewById(R.id.et_category);
-            priceEditText = findViewById(R.id.et_price);
-            submitButton = findViewById(R.id.btn_submit);
-            progressBar = findViewById(R.id.progress_bar);
-
-            if (titleEditText == null || descriptionEditText == null || 
-                categoryEditText == null || priceEditText == null || 
-                submitButton == null || progressBar == null) {
-                throw new IllegalStateException("One or more views not found in layout");
+            // Initialize toolbar
+            toolbar = findViewById(R.id.toolbar);
+            setSupportActionBar(toolbar);
+            if (getSupportActionBar() != null) {
+                getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             }
-
-            // Initialize image views and buttons
-            imageViews = new ImageView[4];
-            imageButtons = new Button[4];
-            selectedImageUris = new ArrayList<>(4);
-            for (int i = 0; i < 4; i++) {
-                selectedImageUris.add(null);
-            }
-
-            int[] imageViewIds = {R.id.iv_image1, R.id.iv_image2, R.id.iv_image3, R.id.iv_image4};
-            int[] buttonIds = {R.id.btn_image1, R.id.btn_image2, R.id.btn_image3, R.id.btn_image4};
-
-            for (int i = 0; i < 4; i++) {
-                imageViews[i] = findViewById(imageViewIds[i]);
-                imageButtons[i] = findViewById(buttonIds[i]);
-                if (imageViews[i] == null || imageButtons[i] == null) {
-                    throw new IllegalStateException("Image view or button not found for index: " + i);
-                }
-            }
+            
+            // Initialize form fields
+            etTitle = findViewById(R.id.etTitle);
+            etDescription = findViewById(R.id.etDescription);
+            etPrice = findViewById(R.id.etPrice);
+            dropdownCategory = findViewById(R.id.dropdownCategory);
+            btnAddProduct = findViewById(R.id.btnAddProduct);
+            progressBar = findViewById(R.id.progressBar);
+            
+            // Initialize image picker components
+            btnPickGallery = findViewById(R.id.btnPickGallery);
+            btnTakePhoto = findViewById(R.id.btnTakePhoto);
+            selectedImagesLayout = findViewById(R.id.selectedImagesLayout);
+            selectedImagesContainer = findViewById(R.id.selectedImagesContainer);
+            
+            // Initialize video generator components
+            btnGenerateVideo = findViewById(R.id.btnGenerateVideo);
+            progressVideo = findViewById(R.id.progressVideo);
+            tvVideoStatus = findViewById(R.id.tvVideoStatus);
+            
+            // Setup category dropdown
+            ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(
+                    this, R.array.product_categories, android.R.layout.simple_dropdown_item_1line);
+            dropdownCategory.setAdapter(adapter);
+            
+            // Initialize image list
+            selectedImageUris = new ArrayList<>();
+            
             Log.d(TAG, "Views initialized successfully");
         } catch (Exception e) {
             Log.e(TAG, "Error initializing views", e);
@@ -163,21 +183,41 @@ public class AddProductActivity extends AppCompatActivity {
     private void setupClickListeners() {
         Log.d(TAG, "Setting up click listeners");
         try {
-            for (int i = 0; i < 4; i++) {
-                final int index = i;
-                imageButtons[i].setOnClickListener(v -> {
-                    Log.d(TAG, "Image button clicked: " + index);
-                    currentButtonIndex = index;
-                    if (checkAndRequestPermissions()) {
-                        openImagePicker();
-                    }
-                });
-            }
-
-            submitButton.setOnClickListener(v -> {
+            // Image picker buttons
+            btnPickGallery.setOnClickListener(v -> {
+                if (checkAndRequestPermissions()) {
+                    openGalleryPicker();
+                }
+            });
+            
+            btnTakePhoto.setOnClickListener(v -> {
+                if (checkAndRequestPermissions()) {
+                    openCamera();
+                }
+            });
+            
+            // Video generation button
+            btnGenerateVideo.setOnClickListener(v -> {
+                if (selectedImageUris.isEmpty()) {
+                    Toast.makeText(this, "Please upload at least one image first", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                isVideoGenerationRequested = true;
+                btnGenerateVideo.setEnabled(false);
+                progressVideo.setVisibility(View.VISIBLE);
+                tvVideoStatus.setVisibility(View.VISIBLE);
+                tvVideoStatus.setText("Preparing to generate 360° video...");
+            });
+            
+            // Submit button
+            btnAddProduct.setOnClickListener(v -> {
                 Log.d(TAG, "Submit button clicked");
                 uploadProduct();
             });
+            
+            // Toolbar back button
+            toolbar.setNavigationOnClickListener(v -> onBackPressed());
+            
             Log.d(TAG, "Click listeners setup completed");
         } catch (Exception e) {
             Log.e(TAG, "Error setting up click listeners", e);
@@ -213,104 +253,203 @@ public class AddProductActivity extends AppCompatActivity {
         }
     }
 
-    private void openImagePicker() {
-        Log.d(TAG, "Opening image picker for button: " + currentButtonIndex);
+    private void openGalleryPicker() {
+        Log.d(TAG, "Opening gallery picker");
         try {
-            Intent intent = new Intent(Intent.ACTION_PICK);
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
             intent.setType("image/*");
-            imagePickerLauncher.launch(intent);
-            Log.d(TAG, "Image picker launched");
+            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+            galleryLauncher.launch(intent);
         } catch (Exception e) {
-            Log.e(TAG, "Error opening image picker", e);
-            Toast.makeText(this, "Error opening image picker: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "Error opening gallery", e);
+            Toast.makeText(this, "Error opening gallery: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void openCamera() {
+        Log.d(TAG, "Opening camera");
+        // This would require implementing camera functionality
+        // For now, show a message that camera is not implemented
+        Toast.makeText(this, "Camera functionality not implemented yet", Toast.LENGTH_SHORT).show();
+    }
+
+    private void handleGalleryResult(Intent data) {
+        Log.d(TAG, "Handling gallery result");
+        try {
+            int initialSize = selectedImageUris.size();
+            if (data.getClipData() != null) {
+                // Multiple images selected
+                ClipData clipData = data.getClipData();
+                int count = Math.min(clipData.getItemCount(), MAX_IMAGES - initialSize);
+                Log.d(TAG, "Selected " + count + " images");
+                
+                for (int i = 0; i < count; i++) {
+                    Uri imageUri = clipData.getItemAt(i).getUri();
+                    if (!selectedImageUris.contains(imageUri)) {
+                        selectedImageUris.add(imageUri);
+                        addImagePreview(imageUri);
+                    }
+                }
+            } else if (data.getData() != null) {
+                // Single image selected
+                Uri imageUri = data.getData();
+                Log.d(TAG, "Selected single image: " + imageUri);
+                
+                if (!selectedImageUris.contains(imageUri) && selectedImageUris.size() < MAX_IMAGES) {
+                    selectedImageUris.add(imageUri);
+                    addImagePreview(imageUri);
+                }
+            }
+            
+            // Show the images container if we have images
+            if (!selectedImageUris.isEmpty()) {
+                selectedImagesContainer.setVisibility(View.VISIBLE);
+            }
+            
+            Log.d(TAG, "Now have " + selectedImageUris.size() + " images selected");
+        } catch (Exception e) {
+            Log.e(TAG, "Error handling gallery result", e);
+            Toast.makeText(this, "Error processing selected images: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void addImagePreview(Uri imageUri) {
+        Log.d(TAG, "Adding image preview for: " + imageUri);
+        
+        try {
+            // Inflate image preview item layout
+            View previewItem = LayoutInflater.from(this).inflate(
+                    R.layout.item_image_preview, selectedImagesLayout, false);
+            
+            ImageView imageView = previewItem.findViewById(R.id.previewImage);
+            ImageButton deleteButton = previewItem.findViewById(R.id.btnRemoveImage);
+            
+            // Load image with Glide
+            Glide.with(this)
+                    .load(imageUri)
+                    .centerCrop()
+                    .into(imageView);
+            
+            // Setup delete button
+            deleteButton.setOnClickListener(v -> {
+                selectedImageUris.remove(imageUri);
+                selectedImagesLayout.removeView(previewItem);
+                
+                // Hide container if no images
+                if (selectedImageUris.isEmpty()) {
+                    selectedImagesContainer.setVisibility(View.GONE);
+                }
+            });
+            
+            // Add to layout
+            selectedImagesLayout.addView(previewItem);
+        } catch (Exception e) {
+            Log.e(TAG, "Error adding image preview", e);
         }
     }
 
     private void uploadProduct() {
-        if (!validateForm()) return;
-
-        progressBar.setVisibility(View.VISIBLE);
-        submitButton.setEnabled(false);
-
-        String userId = auth.getCurrentUser().getUid();
-        List<String> imageUrls = new ArrayList<>();
-
-        // Count and upload images to Firebase Storage first
-        final int totalImages = (int) selectedImageUris.stream().filter(uri -> uri != null).count();
-        if (totalImages == 0) {
-            resetUiWithError("Select at least one image");
-            return;
-        }
-
-        for (Uri uri : selectedImageUris) {
-            if (uri == null) continue;
-            String imageName = UUID.randomUUID().toString();
-            StorageReference ref = storage.getReference()
-                    .child("products")
-                    .child(userId)
-                    .child(imageName);
-
-            ref.putFile(uri)
-                .addOnSuccessListener(taskSnapshot -> {
-                    ref.getDownloadUrl().addOnSuccessListener(downloadUri -> {
-                        imageUrls.add(downloadUri.toString());
-                        if (imageUrls.size() == totalImages) {
-                            callTrellisAPI(imageUrls, userId);
-                        }
-                    }).addOnFailureListener(e -> {
-                        Log.e(TAG, "Error getting download URL", e);
-                        resetUiWithError("Error getting image URL");
-                    });
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error uploading image", e);
-                    resetUiWithError("Error uploading image");
-                });
+        Log.d(TAG, "Starting product upload");
+        
+        try {
+            if (!validateForm()) {
+                return;
+            }
+            
+            // Show progress
+            progressBar.setVisibility(View.VISIBLE);
+            btnAddProduct.setEnabled(false);
+            
+            String userId = auth.getCurrentUser().getUid();
+            
+            // Upload images first
+            List<String> imageUrls = new ArrayList<>();
+            
+            if (selectedImageUris.isEmpty()) {
+                Toast.makeText(this, "Please select at least one product image", Toast.LENGTH_SHORT).show();
+                progressBar.setVisibility(View.GONE);
+                btnAddProduct.setEnabled(true);
+                return;
+            }
+            
+            // Upload each image to Firebase Storage
+            for (int i = 0; i < selectedImageUris.size(); i++) {
+                Uri imageUri = selectedImageUris.get(i);
+                String imageName = "product_" + UUID.randomUUID().toString() + ".jpg";
+                StorageReference imageRef = storage.getReference().child("products/" + userId + "/" + imageName);
+                
+                imageRef.putFile(imageUri)
+                        .addOnSuccessListener(taskSnapshot -> {
+                            imageRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                                String imageUrl = uri.toString();
+                                imageUrls.add(imageUrl);
+                                
+                                // When all images are uploaded
+                                if (imageUrls.size() == selectedImageUris.size()) {
+                                    if (isVideoGenerationRequested) {
+                                        // Generate 360 video if requested
+                                        tvVideoStatus.setText("Generating 360° video... This may take a few minutes.");
+                                        callTrellisAPI(imageUrls, userId);
+                                    } else {
+                                        // Save product without video
+                                        saveProductToFirestore(imageUrls, null, userId);
+                                    }
+                                }
+                            });
+                        })
+                        .addOnFailureListener(e -> {
+                            Log.e(TAG, "Error uploading image", e);
+                            Toast.makeText(this, "Error uploading image: " + e.getMessage(), 
+                                    Toast.LENGTH_SHORT).show();
+                            resetUiWithError("Failed to upload images.");
+                        });
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in uploadProduct", e);
+            Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            resetUiWithError("An unexpected error occurred.");
         }
     }
 
     private void callTrellisAPI(List<String> imageUrls, String userId) {
+        Log.d(TAG, "Calling Trellis API for 360° video generation");
+        
         try {
-            JSONArray imagesArray = new JSONArray(imageUrls);
-
-            JSONObject input = new JSONObject()
-                    .put("images",              imagesArray)
-                    .put("texture_size",        2048)
-                    .put("mesh_simplify",       0.9)
-                    .put("ss_sampling_steps",   38)
-                    .put("generate_model",      false) // ✅ no GLB
-                    .put("generate_color",      true)  // ✅ request MP4 video
-                    .put("generate_normal",     false); // ✅ skip normals
-
-            JSONObject payload = new JSONObject()
-                    .put("version", MODEL_VERSION)
-                    .put("input",   input);
-
-            Log.d(TAG, "API Payload (video only): " + payload);
-
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("version", MODEL_VERSION);
+            
+            JSONObject input = new JSONObject();
+            JSONArray imagesArray = new JSONArray();
+            
+            // Add all image URLs to the request
+            for (String imageUrl : imageUrls) {
+                imagesArray.put(imageUrl);
+            }
+            
+            input.put("images", imagesArray);
+            requestBody.put("input", input);
+            
             OkHttpClient client = new OkHttpClient.Builder()
-                    .connectTimeout(60, TimeUnit.SECONDS)
-                    .writeTimeout(60, TimeUnit.SECONDS)
-                    .readTimeout(60, TimeUnit.SECONDS)
+                    .connectTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(30, TimeUnit.SECONDS)
+                    .writeTimeout(30, TimeUnit.SECONDS)
                     .build();
-
-            RequestBody body = RequestBody.create(
-                    payload.toString(),
-                    MediaType.parse("application/json; charset=utf-8")
-            );
-
+            
             Request request = new Request.Builder()
                     .url("https://api.replicate.com/v1/predictions")
-                    .addHeader("Authorization", "Bearer " + REPLICATE_TOKEN)
-                    .addHeader("Prefer",        "wait=60")
-                    .post(body)
+                    .post(RequestBody.create(
+                            MediaType.parse("application/json"), requestBody.toString()))
+                    .header("Authorization", "Token " + REPLICATE_TOKEN)
                     .build();
-
+            
             makeApiCall(client, request, imageUrls, userId);
-
+            
         } catch (JSONException e) {
-            Log.e(TAG, "JSON build error", e);
-            resetUiWithError("Error building API request");
+            Log.e(TAG, "Error creating JSON for API call", e);
+            saveProductToFirestore(imageUrls, null, userId);
+        } catch (Exception e) {
+            Log.e(TAG, "Error in callTrellisAPI", e);
+            saveProductToFirestore(imageUrls, null, userId);
         }
     }
 
@@ -320,164 +459,247 @@ public class AddProductActivity extends AppCompatActivity {
             public void onFailure(Call call, IOException e) {
                 Log.e(TAG, "API call failed", e);
                 runOnUiThread(() -> {
-                    if (e instanceof SocketTimeoutException) {
-                        resetUiWithError("Request timed out. Please try again later.");
-                    } else {
-                        resetUiWithError("Network error: " + e.getMessage());
-                    }
+                    tvVideoStatus.setText("Video generation failed. Saving product without video.");
+                    // Save without video if API call fails
+                    saveProductToFirestore(imageUrls, null, userId);
                 });
             }
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                if (!response.isSuccessful()) {
-                    String errorBody = response.body() != null
-                            ? response.body().string()
-                            : "No response body";
-                    Log.e(TAG, "HTTP error: " + response.code() + " — " + errorBody);
-                    runOnUiThread(() -> resetUiWithError("API error: " + response.code()));
-                    return;
-                }
-
-                try {
-                    // 1. Parse the full prediction object (sync mode returns this) :contentReference[oaicite:2]{index=2}
-                    String resp = response.body().string();
-                    JSONObject prediction = new JSONObject(resp);
-
-                    // 2. 'output' is a JSONObject, not a JSONArray :contentReference[oaicite:3]{index=3}
-                    JSONObject outputObj = prediction.getJSONObject("output");
-
-                    // 3. Safely extract your video URL (combined_video or fallback to color_video)
-                    String videoUrl;
-                    if (outputObj.has("combined_video") &&
-                            !outputObj.isNull("combined_video")) {
-                        videoUrl = outputObj.getString("combined_video");
-                    } else {
-                        videoUrl = outputObj.optString("color_video", null);
+                if (response.isSuccessful()) {
+                    String responseBody = response.body().string();
+                    try {
+                        JSONObject jsonResponse = new JSONObject(responseBody);
+                        String predictionId = jsonResponse.getString("id");
+                        Log.d(TAG, "Started prediction with ID: " + predictionId);
+                        
+                        // Now poll for results
+                        runOnUiThread(() -> 
+                            tvVideoStatus.setText("Processing video... This may take a few minutes."));
+                        
+                        pollForResult(client, predictionId, imageUrls, userId);
+                        
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error parsing API response", e);
+                        runOnUiThread(() -> 
+                            saveProductToFirestore(imageUrls, null, userId));
                     }
-
-                    if (videoUrl == null) {
-                        Log.e(TAG, "No video URL in output object");
-                        runOnUiThread(() -> resetUiWithError("No video URL received from API"));
-                        return;
-                    }
-
-                    final String finalVideoUrl = videoUrl;
-
-                    // 4. On the UI thread, build and save your Product with only the MP4 :contentReference[oaicite:4]{index=4}
-                    runOnUiThread(() -> {
-                        String title    = titleEditText.getText().toString().trim();
-                        String desc     = descriptionEditText.getText().toString().trim();
-                        String category = categoryEditText.getText().toString().trim();
-                        String priceStr = priceEditText.getText().toString().trim();
-
-                        double price;
-                        try {
-                            price = Double.parseDouble(priceStr);
-                        } catch (NumberFormatException ex) {
-                            resetUiWithError("Invalid price format");
-                            return;
-                        }
-
-                        // No GLB produced: pass null for model_file :contentReference[oaicite:5]{index=5}
-                        Product product = new Product(
-                                title, desc, category, price,
-                                imageUrls,
-                                null,               // model_file = null
-                                finalVideoUrl,      // MP4 URL
-                                userId
-                        );
-
-                        firestore.collection("products")
-                                .add(product)
-                                .addOnSuccessListener(docRef -> {
-                                    Toast.makeText(
-                                            AddProductActivity.this,
-                                            "Product and video added successfully",
-                                            Toast.LENGTH_SHORT
-                                    ).show();
-                                    finish();
-                                })
-                                .addOnFailureListener(err -> {
-                                    Log.e(TAG, "Error saving product", err);
-                                    resetUiWithError("Error saving product");
-                                });
-                    });
-
-                } catch (JSONException je) {
-                    // Catch when keys are missing or types mismatch :contentReference[oaicite:6]{index=6}
-                    Log.e(TAG, "JSON parse error", je);
-                    runOnUiThread(() -> resetUiWithError("Error parsing API response"));
+                } else {
+                    Log.e(TAG, "API error: " + response.code() + " - " + response.message());
+                    runOnUiThread(() -> 
+                        saveProductToFirestore(imageUrls, null, userId));
                 }
             }
-
         });
     }
 
-    private void resetUiWithError(String message) {
-        progressBar.setVisibility(View.GONE);
-        submitButton.setEnabled(true);
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    private void pollForResult(OkHttpClient client, String predictionId, List<String> imageUrls, String userId) {
+        new Thread(() -> {
+            try {
+                Thread.sleep(5000); // Wait 5 seconds before first check
+                
+                Request pollRequest = new Request.Builder()
+                        .url("https://api.replicate.com/v1/predictions/" + predictionId)
+                        .header("Authorization", "Token " + REPLICATE_TOKEN)
+                        .build();
+                
+                client.newCall(pollRequest).enqueue(new Callback() {
+                    @Override
+                    public void onFailure(Call call, IOException e) {
+                        Log.e(TAG, "Poll request failed", e);
+                        if (e instanceof SocketTimeoutException) {
+                            // Try polling again
+                            pollForResult(client, predictionId, imageUrls, userId);
+                        } else {
+                            runOnUiThread(() ->
+                                saveProductToFirestore(imageUrls, null, userId));
+                        }
+                    }
+
+                    @Override
+                    public void onResponse(Call call, Response response) throws IOException {
+                        if (response.isSuccessful()) {
+                            String responseBody = response.body().string();
+                            try {
+                                JSONObject jsonResponse = new JSONObject(responseBody);
+                                String status = jsonResponse.getString("status");
+                                
+                                switch (status) {
+                                    case "succeeded":
+                                        // Video is ready
+                                        JSONObject output = jsonResponse.getJSONObject("output");
+                                        String videoUrl = output.getString("video");
+                                        Log.d(TAG, "Video generated: " + videoUrl);
+                                        
+                                        runOnUiThread(() -> {
+                                            tvVideoStatus.setText("Video generated successfully!");
+                                            saveProductToFirestore(imageUrls, videoUrl, userId);
+                                        });
+                                        break;
+                                        
+                                    case "failed":
+                                        Log.e(TAG, "Video generation failed");
+                                        runOnUiThread(() -> {
+                                            tvVideoStatus.setText("Video generation failed. Saving product without video.");
+                                            saveProductToFirestore(imageUrls, null, userId);
+                                        });
+                                        break;
+                                        
+                                    case "processing":
+                                    case "starting":
+                                        // Still processing, poll again
+                                        pollForResult(client, predictionId, imageUrls, userId);
+                                        break;
+                                        
+                                    default:
+                                        Log.d(TAG, "Unknown status: " + status);
+                                        runOnUiThread(() ->
+                                            saveProductToFirestore(imageUrls, null, userId));
+                                        break;
+                                }
+                                
+                            } catch (JSONException e) {
+                                Log.e(TAG, "Error parsing poll response", e);
+                                runOnUiThread(() ->
+                                    saveProductToFirestore(imageUrls, null, userId));
+                            }
+                        } else {
+                            Log.e(TAG, "Poll error: " + response.code() + " - " + response.message());
+                            runOnUiThread(() ->
+                                saveProductToFirestore(imageUrls, null, userId));
+                        }
+                    }
+                });
+                
+            } catch (InterruptedException e) {
+                Log.e(TAG, "Polling interrupted", e);
+                runOnUiThread(() ->
+                    saveProductToFirestore(imageUrls, null, userId));
+            }
+        }).start();
     }
 
-    private boolean validateForm() {
-        Log.d(TAG, "Validating form");
+    private void saveProductToFirestore(List<String> imageUrls, String videoUrl, String userId) {
+        Log.d(TAG, "Saving product to Firestore");
         try {
-            boolean valid = true;
-
-            if (TextUtils.isEmpty(titleEditText.getText())) {
-                Log.d(TAG, "Title is empty");
-                titleEditText.setError("Required");
-                valid = false;
+            String title = etTitle.getText().toString().trim();
+            String description = etDescription.getText().toString().trim();
+            String priceStr = etPrice.getText().toString().trim();
+            String category = dropdownCategory.getText().toString().trim();
+            
+            double price = Double.parseDouble(priceStr);
+            
+            Product product = new Product();
+            product.setTitle(title);
+            product.setDescription(description);
+            product.setPrice(price);
+            product.setCategory(category);
+            product.setImageUrls(imageUrls);
+            product.setUserId(userId);
+            
+            if (videoUrl != null && !videoUrl.isEmpty()) {
+                product.setVideoUrl(videoUrl);
             }
-
-            if (TextUtils.isEmpty(descriptionEditText.getText())) {
-                Log.d(TAG, "Description is empty");
-                descriptionEditText.setError("Required");
-                valid = false;
-            }
-
-            if (TextUtils.isEmpty(categoryEditText.getText())) {
-                Log.d(TAG, "Category is empty");
-                categoryEditText.setError("Required");
-                valid = false;
-            }
-
-            if (TextUtils.isEmpty(priceEditText.getText())) {
-                Log.d(TAG, "Price is empty");
-                priceEditText.setError("Required");
-                valid = false;
-            } else {
-                try {
-                    Double.parseDouble(priceEditText.getText().toString());
-                } catch (NumberFormatException e) {
-                    Log.d(TAG, "Invalid price format");
-                    priceEditText.setError("Invalid price");
-                    valid = false;
-                }
-            }
-
-            Log.d(TAG, "Form validation result: " + valid);
-            return valid;
+            
+            // Add to Firestore
+            firestore.collection("products")
+                    .add(product)
+                    .addOnSuccessListener(documentReference -> {
+                        Log.d(TAG, "Product added with ID: " + documentReference.getId());
+                        Toast.makeText(this, "Product added successfully!", Toast.LENGTH_SHORT).show();
+                        finish();
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "Error adding product", e);
+                        resetUiWithError("Failed to save product.");
+                    });
+            
+        } catch (NumberFormatException e) {
+            Log.e(TAG, "Invalid price format", e);
+            resetUiWithError("Please enter a valid price.");
         } catch (Exception e) {
-            Log.e(TAG, "Error in validateForm", e);
-            return false;
+            Log.e(TAG, "Error saving product", e);
+            resetUiWithError("An error occurred while saving the product.");
         }
     }
 
+    private void resetUiWithError(String message) {
+        runOnUiThread(() -> {
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+            progressBar.setVisibility(View.GONE);
+            progressVideo.setVisibility(View.GONE);
+            btnAddProduct.setEnabled(true);
+            btnGenerateVideo.setEnabled(true);
+        });
+    }
+
+    private boolean validateForm() {
+        boolean valid = true;
+        
+        String title = etTitle.getText().toString().trim();
+        String description = etDescription.getText().toString().trim();
+        String price = etPrice.getText().toString().trim();
+        String category = dropdownCategory.getText().toString().trim();
+        
+        if (TextUtils.isEmpty(title)) {
+            etTitle.setError("Required");
+            valid = false;
+        } else {
+            etTitle.setError(null);
+        }
+        
+        if (TextUtils.isEmpty(description)) {
+            etDescription.setError("Required");
+            valid = false;
+        } else {
+            etDescription.setError(null);
+        }
+        
+        if (TextUtils.isEmpty(price)) {
+            etPrice.setError("Required");
+            valid = false;
+        } else {
+            try {
+                double priceValue = Double.parseDouble(price);
+                if (priceValue <= 0) {
+                    etPrice.setError("Must be greater than 0");
+                    valid = false;
+                } else {
+                    etPrice.setError(null);
+                }
+            } catch (NumberFormatException e) {
+                etPrice.setError("Enter a valid price");
+                valid = false;
+            }
+        }
+        
+        if (TextUtils.isEmpty(category)) {
+            dropdownCategory.setError("Required");
+            valid = false;
+        } else {
+            dropdownCategory.setError(null);
+        }
+        
+        return valid;
+    }
+    
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                         @NonNull int[] grantResults) {
+                                           @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        Log.d(TAG, "Permission result received");
         if (requestCode == PERMISSION_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 Log.d(TAG, "Permission granted");
-                openImagePicker();
+                // Permission granted, proceed with image picking
+                Toast.makeText(this, "Permission granted! You can now select images.", 
+                        Toast.LENGTH_SHORT).show();
             } else {
                 Log.d(TAG, "Permission denied");
-                Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Permission denied. Cannot access images.", 
+                        Toast.LENGTH_SHORT).show();
             }
         }
     }
 } 
+

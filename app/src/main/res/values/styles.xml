@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- draw behind status bar -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <!-- make status bar transparent -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+</resources>

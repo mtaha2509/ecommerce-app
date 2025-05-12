@@ -13,6 +13,8 @@ public class Product {
     private String videoUrl; // URL for the preview video
     private String userId;
     private long timestamp;
+    private float averageRating;
+    private int reviewCount;
 
     // Required empty constructor for Firestore
     public Product() {}
@@ -27,6 +29,8 @@ public class Product {
         this.videoUrl = videoUrl;
         this.userId = userId;
         this.timestamp = System.currentTimeMillis();
+        this.averageRating = 0;
+        this.reviewCount = 0;
     }
 
     // Getters and Setters
@@ -50,4 +54,8 @@ public class Product {
     public void setUserId(String userId) { this.userId = userId; }
     public long getTimestamp() { return timestamp; }
     public void setTimestamp(long timestamp) { this.timestamp = timestamp; }
+    public float getAverageRating() { return averageRating; }
+    public void setAverageRating(float averageRating) { this.averageRating = averageRating; }
+    public int getReviewCount() { return reviewCount; }
+    public void setReviewCount(int reviewCount) { this.reviewCount = reviewCount; }
 } 

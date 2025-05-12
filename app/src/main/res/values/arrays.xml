@@ -4,4 +4,27 @@
         <item>0.0</item>
         <item>1000.0</item>
     </array>
+
+    <string-array name="product_categories">
+        <item>Electronics</item>
+        <item>Clothing</item>
+        <item>Home &amp; Kitchen</item>
+        <item>Beauty &amp; Personal Care</item>
+        <item>Sports &amp; Outdoors</item>
+        <item>Toys &amp; Games</item>
+        <item>Books</item>
+        <item>Furniture</item>
+        <item>Automotive</item>
+        <item>Health &amp; Wellness</item>
+        <item>Jewelry</item>
+        <item>Office Supplies</item>
+        <item>Other</item>
+    </string-array>
+    
+    <string-array name="sort_options">
+        <item>Newest First</item>
+        <item>Price: Low to High</item>
+        <item>Price: High to Low</item>
+        <item>Rating: High to Low</item>
+    </string-array>
 </resources> 

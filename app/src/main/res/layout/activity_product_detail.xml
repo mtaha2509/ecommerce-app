@@ -1,144 +1,437 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="false">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <!-- Media Section (ViewPager for Images + Video) -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/mediaContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <!-- ViewPager for Images -->
+                <androidx.viewpager2.widget.ViewPager2
+                    android:id="@+id/viewPager"
+                    android:layout_width="match_parent"
+                    android:layout_height="300dp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"/>
+
+                <com.tbuonomo.viewpagerdotsindicator.WormDotsIndicator
+                    android:id="@+id/dotsIndicator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:layout_constraintBottom_toBottomOf="@id/viewPager"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    android:translationZ="4dp"
+                    android:layout_marginBottom="8dp"
+                    app:dotsSize="8dp"
+                    app:dotsSpacing="12dp"
+                    app:dotsColor="@color/divider"
+                    app:selectedDotColor="@color/primary"/>
+
+                <com.google.android.material.appbar.MaterialToolbar
+                    android:id="@+id/toolbar"
+                    android:layout_width="match_parent"
+                    android:layout_height="?attr/actionBarSize"
+                    android:background="@android:color/transparent"
+                    app:navigationIcon="@drawable/ic_arrow_back"
+                    app:title=""
+                    android:elevation="0dp"
+                    app:layout_constraintTop_toTopOf="@id/viewPager"
+                    app:layout_constraintStart_toStartOf="@id/viewPager"
+                    app:layout_constraintEnd_toEndOf="@id/viewPager"/>
+
+                <!-- 3D View Button -->
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/fabView3D"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:layout_margin="16dp"
+                    android:background="@drawable/bg_circle_3d_button"
+                    android:contentDescription="See 360° View"
+                    android:src="@drawable/ic_3d"
+                    app:backgroundTint="@null"
+                    app:elevation="6dp"
+                    app:fabCustomSize="56dp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="@id/viewPager"
+                    app:rippleColor="#80FFFFFF" />
+
+                <!-- Keep the original card but make it invisible -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardVideo360"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="16dp"
+                    android:visibility="gone"
+                    app:cardBackgroundColor="@color/primary"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="4dp"
+                    app:layout_constraintBottom_toBottomOf="@id/viewPager"
+                    app:layout_constraintEnd_toEndOf="@id/viewPager">
+
+                    <TextView
+                        android:id="@+id/tvView360"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:drawableStart="@drawable/ic_play_circle"
+                        android:drawablePadding="4dp"
+                        android:drawableTint="@color/white"
+                        android:gravity="center_vertical"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="8dp"
+                        android:text="See 360° View"
+                        android:textColor="@color/white"
+                        android:textStyle="bold" />
+                </com.google.android.material.card.MaterialCardView>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- Product Info Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/productInfoCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp"
+                app:layout_constraintTop_toBottomOf="@id/mediaContainer">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp">
+
+                    <!-- Product Title -->
+                    <TextView
+                        android:id="@+id/tvProductTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/text_primary"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        app:layout_constraintTop_toTopOf="parent"
+                        tools:text="Premium Ergonomic Office Chair" />
+
+                    <!-- Price -->
+                    <TextView
+                        android:id="@+id/tvProductPrice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:textColor="@color/primary"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/tvProductTitle"
+                        tools:text="$249.99" />
+
+                    <!-- Rating Container -->
+                    <LinearLayout
+                        android:id="@+id/ratingContainer"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/tvProductPrice">
+
+                        <RatingBar
+                            android:id="@+id/ratingBar"
+                            style="?android:attr/ratingBarStyleSmall"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:isIndicator="true"
+                            android:progressTint="@color/warning"
+                            android:stepSize="0.1" />
+
+                        <TextView
+                            android:id="@+id/tvRatingCount"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="14sp"
+                            tools:text="4.5 (123 reviews)" />
+
+                        <TextView
+                            android:id="@+id/tvViewReviews"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:text="View All"
+                            android:textColor="@color/primary"
+                            android:textSize="14sp" />
+
+                    </LinearLayout>
+
+                    <!-- Description Label -->
+                    <TextView
+                        android:id="@+id/tvDescriptionLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="Description"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/ratingContainer" />
+
+                    <!-- Description -->
+                    <TextView
+                        android:id="@+id/tvProductDescription"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        app:layout_constraintTop_toBottomOf="@id/tvDescriptionLabel"
+                        tools:text="This premium office chair features ergonomic design with lumbar support, breathable mesh back, adjustable height, and 360-degree swivel." />
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Quantity Section -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/quantityCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp"
+                app:layout_constraintTop_toBottomOf="@id/productInfoCard">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:id="@+id/tvQuantityLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Quantity"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <LinearLayout
+                        android:id="@+id/quantityContainer"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/tvQuantityLabel">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnDecrease"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:padding="0dp"
+                            android:text="-"
+                            android:textSize="20sp"
+                            app:cornerRadius="20dp" />
+
+                        <TextView
+                            android:id="@+id/tvQuantity"
+                            android:layout_width="48dp"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:text="1"
+                            android:textColor="@color/text_primary"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnIncrease"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:padding="0dp"
+                            android:text="+"
+                            android:textSize="20sp"
+                            app:cornerRadius="20dp" />
+                    </LinearLayout>
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Reviews Preview Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/reviewsPreviewCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp"
+                app:layout_constraintTop_toBottomOf="@id/quantityCard">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:id="@+id/tvReviewsLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Customer Reviews"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <TextView
+                        android:id="@+id/tvWriteReview"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Write a Review"
+                        android:textColor="@color/primary"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="@id/tvReviewsLabel" />
+
+                    <!-- No Reviews State -->
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:id="@+id/noReviewsContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        app:layout_constraintTop_toBottomOf="@id/tvReviewsLabel">
+
+                        <TextView
+                            android:id="@+id/tvNoReviews"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:text="No reviews yet. Be the first to review this product!"
+                            android:textColor="@color/text_secondary"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent" />
+
+                        <TextView
+                            android:id="@+id/tvAllReviewsEmpty"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:gravity="center"
+                            android:padding="8dp"
+                            android:text="View All Reviews"
+                            android:textColor="@color/primary"
+                            android:textStyle="bold"
+                            app:layout_constraintTop_toBottomOf="@id/tvNoReviews" />
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    <!-- Top Review Preview -->
+                    <include
+                        android:id="@+id/topReviewPreview"
+                        layout="@layout/item_review"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:visibility="gone"
+                        app:layout_constraintTop_toBottomOf="@id/tvReviewsLabel" />
+
+                    <TextView
+                        android:id="@+id/tvViewAllReviews"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:gravity="center"
+                        android:padding="8dp"
+                        android:text="View All Reviews"
+                        android:textColor="@color/primary"
+                        android:textStyle="bold"
+                        android:visibility="gone"
+                        app:layout_constraintTop_toBottomOf="@id/topReviewPreview" />
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Contact Seller Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnContactSeller"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="16dp"
+                android:padding="12dp"
+                android:text="Contact Seller"
+                android:textColor="@color/primary"
+                app:layout_constraintTop_toBottomOf="@id/reviewsPreviewCard"
+                app:strokeColor="@color/primary" />
+
+            <!-- Spacer -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="100dp"
+                app:layout_constraintTop_toBottomOf="@id/btnContactSeller" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- Bottom Bar for Add to Cart & View Cart -->
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:layout_gravity="bottom"
+        app:cardElevation="8dp">
 
-        <!-- Image Carousel -->
-        <androidx.viewpager2.widget.ViewPager2
-            android:id="@+id/viewPager"
-            android:layout_width="match_parent"
-            android:layout_height="300dp"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <!-- Video Player -->
-        <com.google.android.exoplayer2.ui.StyledPlayerView
-            android:id="@+id/videoPlayer"
-            android:layout_width="match_parent"
-            android:layout_height="300dp"
-            android:visibility="gone"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <!-- Product Title -->
-        <TextView
-            android:id="@+id/tvProductTitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            app:layout_constraintTop_toBottomOf="@id/viewPager" />
-
-        <!-- Price -->
-        <TextView
-            android:id="@+id/tvProductPrice"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textColor="@color/design_default_color_primary"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            app:layout_constraintTop_toBottomOf="@id/tvProductTitle"
-            app:layout_constraintStart_toStartOf="parent" />
-
-        <!-- Description -->
-        <TextView
-            android:id="@+id/tvProductDescription"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:textSize="16sp"
-            app:layout_constraintTop_toBottomOf="@id/tvProductPrice" />
-            
-        <!-- Quantity Controls -->
-        <TextView
-            android:id="@+id/tvQuantityLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Quantity:"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:layout_marginTop="24dp"
-            app:layout_constraintTop_toBottomOf="@id/tvProductDescription"
-            app:layout_constraintStart_toStartOf="parent" />
-            
         <LinearLayout
-            android:id="@+id/quantityContainer"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="8dp"
-            app:layout_constraintTop_toBottomOf="@id/tvQuantityLabel"
-            app:layout_constraintStart_toStartOf="parent">
-            
+            android:padding="12dp">
+
+            <!-- Add to Cart Button -->
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnDecrease"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:text="-"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                app:cornerRadius="24dp" />
-                
-            <TextView
-                android:id="@+id/tvQuantity"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:text="1"
-                android:textSize="18sp"
-                android:gravity="center"
-                android:background="@android:color/transparent" />
-                
+                android:id="@+id/btnAddToCart"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/primary"
+                android:padding="12dp"
+                android:text="Add to Cart"
+                android:textColor="@color/white" />
+
+            <!-- View Cart Button -->
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnIncrease"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:text="+"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                app:cornerRadius="24dp" />
+                android:id="@+id/btnViewCart"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="12dp"
+                android:text="View Cart"
+                android:textColor="@color/primary"
+                app:strokeColor="@color/primary" />
         </LinearLayout>
-
-        <!-- Add to Cart Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnAddToCart"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:layout_marginEnd="8dp"
-            android:padding="12dp"
-            android:text="Add to Cart"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/btnViewCart"
-            app:layout_constraintTop_toBottomOf="@id/quantityContainer" />
-            
-        <!-- View Cart Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnViewCart"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:padding="12dp"
-            android:text="View Cart"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/quantityContainer"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
-            
-        <!-- Contact Seller Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnContactSeller"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:padding="12dp"
-            android:text="Contact Seller"
-            app:layout_constraintTop_toBottomOf="@id/btnAddToCart"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-</androidx.core.widget.NestedScrollView> 
+    </com.google.android.material.card.MaterialCardView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

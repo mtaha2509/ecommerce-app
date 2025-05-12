@@ -9,6 +9,7 @@ public class CartItem {
     private String imageUrl;
     private int quantity;
     private long timestamp;
+    private String sellerId;
 
     // Empty constructor required for Firestore
     public CartItem() {}
@@ -16,6 +17,18 @@ public class CartItem {
     public CartItem(String productId, String userId, String title, double price, String imageUrl, int quantity) {
         this.productId = productId;
         this.userId = userId;
+        this.title = title;
+        this.price = price;
+        this.imageUrl = imageUrl;
+        this.quantity = quantity;
+        this.timestamp = System.currentTimeMillis();
+    }
+
+    // Constructor with sellerId
+    public CartItem(String productId, String userId, String sellerId, String title, double price, String imageUrl, int quantity) {
+        this.productId = productId;
+        this.userId = userId;
+        this.sellerId = sellerId;
         this.title = title;
         this.price = price;
         this.imageUrl = imageUrl;
@@ -86,5 +99,13 @@ public class CartItem {
 
     public void setTimestamp(long timestamp) {
         this.timestamp = timestamp;
+    }
+    
+    public String getSellerId() {
+        return sellerId;
+    }
+
+    public void setSellerId(String sellerId) {
+        this.sellerId = sellerId;
     }
 } 

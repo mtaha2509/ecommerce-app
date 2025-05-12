@@ -8,6 +8,7 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.ecommerceapp.MainActivity;
+import com.example.ecommerceapp.activities.BuyerMainActivity;
 import com.example.ecommerceapp.R;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -51,7 +52,8 @@ public class OrderConfirmationActivity extends AppCompatActivity {
                             Intent intent;
                             
                             if (role != null && role.equals("buyer")) {
-                                intent = new Intent(OrderConfirmationActivity.this, ProductListActivity.class);
+                                // Direct buyers to the new BuyerMainActivity
+                                intent = new Intent(OrderConfirmationActivity.this, BuyerMainActivity.class);
                             } else {
                                 intent = new Intent(OrderConfirmationActivity.this, MainActivity.class);
                             }
@@ -61,8 +63,8 @@ public class OrderConfirmationActivity extends AppCompatActivity {
                             finish();
                         })
                         .addOnFailureListener(e -> {
-                            // Default to product list on error
-                            Intent intent = new Intent(OrderConfirmationActivity.this, ProductListActivity.class);
+                            // Default to BuyerMainActivity on error
+                            Intent intent = new Intent(OrderConfirmationActivity.this, BuyerMainActivity.class);
                             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
                             startActivity(intent);
                             finish();

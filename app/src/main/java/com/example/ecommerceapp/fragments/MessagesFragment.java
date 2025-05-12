@@ -109,6 +109,8 @@ public class MessagesFragment extends Fragment implements ConversationAdapter.Co
     
     private void loadConversations() {
         progressBar.setVisibility(View.VISIBLE);
+        
+        // Clear conversations at the beginning to avoid duplicates
         conversations.clear();
         
         // Query conversations based on user role
@@ -126,6 +128,8 @@ public class MessagesFragment extends Fragment implements ConversationAdapter.Co
         
         query.get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
+                    // No need to clear here since we've already cleared at the beginning
+                    
                     for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
                         Conversation conversation = document.toObject(Conversation.class);
                         conversation.setId(document.getId());
@@ -188,8 +192,7 @@ public class MessagesFragment extends Fragment implements ConversationAdapter.Co
     @Override
     public void onResume() {
         super.onResume();
-        if (currentUser != null && !userRole.isEmpty()) {
-            loadConversations();
-        }
+        // Remove redundant loading call to prevent duplication
+        // No need to call loadConversations() again since it's called in determineUserRole()
     }
 }

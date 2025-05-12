@@ -16,7 +16,9 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.example.ecommerceapp.R;
+import com.example.ecommerceapp.activities.EditProfileActivity;
 import com.example.ecommerceapp.activities.LoginActivity;
+import com.example.ecommerceapp.activities.AddressManagementActivity;
 import com.google.android.material.button.MaterialButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -119,21 +121,13 @@ public class ProfileFragment extends Fragment {
     }
     
     private void editProfile() {
-        // For now, just show a toast
-        Toast.makeText(getContext(), "Edit Profile Feature Coming Soon", Toast.LENGTH_SHORT).show();
-        
-        // In a real implementation, we would launch an EditProfileActivity
-        // Intent intent = new Intent(getActivity(), EditProfileActivity.class);
-        // startActivity(intent);
+        Intent intent = new Intent(getActivity(), EditProfileActivity.class);
+        startActivity(intent);
     }
     
     private void manageAddresses() {
-        // For now, just show a toast
-        Toast.makeText(getContext(), "Manage Addresses Feature Coming Soon", Toast.LENGTH_SHORT).show();
-        
-        // In a real implementation, we would launch an AddressManagementActivity
-        // Intent intent = new Intent(getActivity(), AddressManagementActivity.class);
-        // startActivity(intent);
+        Intent intent = new Intent(getActivity(), AddressManagementActivity.class);
+        startActivity(intent);
     }
     
     @Override

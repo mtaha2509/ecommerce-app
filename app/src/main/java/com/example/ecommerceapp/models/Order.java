@@ -11,14 +11,17 @@ public class Order {
     private String orderNumber;
     private @ServerTimestamp Date orderDate;
     private double totalAmount;
-    private String status; // PENDING, PROCESSING, SHIPPED, DELIVERED, CANCELLED
+    private String status; // PENDING, PROCESSING, SHIPPED, COMPLETED, CANCELLED
     private List<OrderItem> items;
     private String shippingAddress;
     private String trackingNumber;
     private Date estimatedDeliveryDate;
+    private List<String> sellerIds;
+    private boolean redeemed; // Whether the amount has been redeemed by the seller
     
     // Required empty constructor for Firestore
     public Order() {
+        this.redeemed = false; // Default to false
     }
     
     public Order(String userId, String orderNumber, double totalAmount, List<OrderItem> items, String shippingAddress) {
@@ -28,6 +31,7 @@ public class Order {
         this.status = "PENDING";
         this.items = items;
         this.shippingAddress = shippingAddress;
+        this.redeemed = false;
     }
     
     // Getters and setters
@@ -109,5 +113,21 @@ public class Order {
     
     public void setEstimatedDeliveryDate(Date estimatedDeliveryDate) {
         this.estimatedDeliveryDate = estimatedDeliveryDate;
+    }
+    
+    public List<String> getSellerIds() {
+        return sellerIds;
+    }
+    
+    public void setSellerIds(List<String> sellerIds) {
+        this.sellerIds = sellerIds;
+    }
+    
+    public boolean isRedeemed() {
+        return redeemed;
+    }
+    
+    public void setRedeemed(boolean redeemed) {
+        this.redeemed = redeemed;
     }
 } 

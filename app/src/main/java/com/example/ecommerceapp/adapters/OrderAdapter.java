@@ -5,6 +5,7 @@ import android.text.format.DateUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -64,6 +65,18 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.ViewHolder> 
         int itemCount = order.getItems() != null ? order.getItems().size() : 0;
         holder.tvItemCount.setText(itemCount + " " + (itemCount == 1 ? "item" : "items"));
         
+        // Show/hide the Received button based on order status
+        if ("SHIPPED".equals(order.getStatus())) {
+            holder.btnReceived.setVisibility(View.VISIBLE);
+            holder.btnReceived.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onOrderReceived(order);
+                }
+            });
+        } else {
+            holder.btnReceived.setVisibility(View.GONE);
+        }
+        
         // Set click listener
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) {
@@ -79,6 +92,7 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.ViewHolder> 
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
         TextView tvOrderId, tvOrderDate, tvOrderStatus, tvOrderAmount, tvItemCount;
+        Button btnReceived;
         
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -87,10 +101,12 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.ViewHolder> 
             tvOrderStatus = itemView.findViewById(R.id.tvOrderStatus);
             tvOrderAmount = itemView.findViewById(R.id.tvOrderAmount);
             tvItemCount = itemView.findViewById(R.id.tvItemCount);
+            btnReceived = itemView.findViewById(R.id.btnReceived);
         }
     }
 
     public interface OrderClickListener {
         void onOrderClick(Order order);
+        void onOrderReceived(Order order);
     }
 } 

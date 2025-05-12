@@ -27,7 +27,9 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ProductDetailActivity extends AppCompatActivity {
     private static final String TAG = "ProductDetailActivity";
@@ -309,6 +311,7 @@ public class ProductDetailActivity extends AppCompatActivity {
         CartItem cartItem = new CartItem(
                 productId,
                 userId,
+                sellerId,
                 productTitle,
                 productPrice,
                 imageUrl,
@@ -333,10 +336,15 @@ public class ProductDetailActivity extends AppCompatActivity {
     private void updateCartItemQuantity(String cartItemId, int currentQuantity) {
         int newQuantity = currentQuantity + quantity;
         
+        // Update both quantity and sellerId to ensure it's set
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("quantity", newQuantity);
+        updates.put("sellerId", sellerId);
+        
         firestore.collection("cart").document(cartItemId)
-                .update("quantity", newQuantity)
+                .update(updates)
                 .addOnSuccessListener(aVoid -> {
-                    Log.d(TAG, "Cart item quantity updated");
+                    Log.d(TAG, "Cart item quantity and seller ID updated");
                     Snackbar.make(btnAddToCart, "Cart updated", Snackbar.LENGTH_LONG)
                             .setAction("VIEW CART", v -> viewCart())
                             .show();

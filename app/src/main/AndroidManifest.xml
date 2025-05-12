@@ -61,6 +61,21 @@
         <activity
             android:name=".activities.ChatActivity"
             android:exported="false" />
+        <activity
+            android:name=".activities.OrderManagementActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.MyIncomeActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.MyProductsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.EditProfileActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.AddressManagementActivity"
+            android:exported="false" />
     </application>
 
 </manifest>

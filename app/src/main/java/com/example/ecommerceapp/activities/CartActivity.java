@@ -211,6 +211,13 @@ public class CartActivity extends AppCompatActivity implements CartAdapter.CartI
         
         // Create order items
         List<OrderItem> orderItems = new ArrayList<>();
+        
+        // Collect unique seller IDs
+        List<String> sellerIds = new ArrayList<>();
+        List<String> productsToLookup = new ArrayList<>();
+        Map<String, CartItem> productIdToCartItemMap = new HashMap<>();
+        
+        // First pass - collect seller IDs and identify products needing lookup
         for (CartItem cartItem : cartItems) {
             OrderItem orderItem = new OrderItem(
                 cartItem.getProductId(),
@@ -220,8 +227,75 @@ public class CartActivity extends AppCompatActivity implements CartAdapter.CartI
                 cartItem.getImageUrl()
             );
             orderItems.add(orderItem);
+            
+            // Check if we have the seller ID
+            String sellerId = cartItem.getSellerId();
+            if (sellerId != null && !sellerId.isEmpty() && !sellerIds.contains(sellerId)) {
+                sellerIds.add(sellerId);
+            } else {
+                // If sellerId is missing, we'll need to look it up from the product
+                productsToLookup.add(cartItem.getProductId());
+                productIdToCartItemMap.put(cartItem.getProductId(), cartItem);
+            }
         }
+        
+        // If we have products to look up, fetch them
+        if (!productsToLookup.isEmpty()) {
+            lookupMissingSellerIds(order, orderItems, sellerIds, productsToLookup, productIdToCartItemMap);
+        } else {
+            // All seller IDs are available, proceed with checkout
+            completeCheckout(order, orderItems, sellerIds);
+        }
+    }
+    
+    private void lookupMissingSellerIds(Order order, List<OrderItem> orderItems, List<String> sellerIds, 
+                                      List<String> productsToLookup, Map<String, CartItem> productIdToCartItemMap) {
+        // Use a counter to track completed lookups
+        final int[] pendingLookups = {productsToLookup.size()};
+        
+        for (String productId : productsToLookup) {
+            firestore.collection("products").document(productId)
+                    .get()
+                    .addOnSuccessListener(documentSnapshot -> {
+                        if (documentSnapshot.exists()) {
+                            String sellerId = documentSnapshot.getString("userId");
+                            if (sellerId != null && !sellerId.isEmpty()) {
+                                // Update the cart item with seller ID for future use
+                                CartItem cartItem = productIdToCartItemMap.get(productId);
+                                if (cartItem != null && cartItem.getCartItemId() != null) {
+                                    firestore.collection("cart").document(cartItem.getCartItemId())
+                                            .update("sellerId", sellerId)
+                                            .addOnFailureListener(e -> 
+                                                Log.e(TAG, "Failed to update cart item with sellerId", e));
+                                }
+                                
+                                // Add to sellerIds list if not already there
+                                if (!sellerIds.contains(sellerId)) {
+                                    sellerIds.add(sellerId);
+                                }
+                            }
+                        }
+                        
+                        // Decrement counter and check if we're done
+                        pendingLookups[0]--;
+                        if (pendingLookups[0] == 0) {
+                            completeCheckout(order, orderItems, sellerIds);
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "Error looking up product seller ID", e);
+                        // Decrement counter and proceed anyway
+                        pendingLookups[0]--;
+                        if (pendingLookups[0] == 0) {
+                            completeCheckout(order, orderItems, sellerIds);
+                        }
+                    });
+        }
+    }
+    
+    private void completeCheckout(Order order, List<OrderItem> orderItems, List<String> sellerIds) {
         order.setItems(orderItems);
+        order.setSellerIds(sellerIds);
         
         // Save to Firestore
         firestore.collection("orders")

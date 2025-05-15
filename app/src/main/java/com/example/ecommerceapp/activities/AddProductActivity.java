@@ -27,12 +27,14 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.constraintlayout.widget.ConstraintLayout;
 
 import com.bumptech.glide.Glide;
 import com.example.ecommerceapp.R;
 import com.example.ecommerceapp.models.Product;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 import com.google.firebase.auth.FirebaseAuth;
@@ -70,11 +72,13 @@ public class AddProductActivity extends AppCompatActivity {
     private MaterialToolbar toolbar;
     private TextInputEditText etTitle, etDescription, etPrice;
     private AutoCompleteTextView dropdownCategory;
-    private MaterialButton btnAddProduct, btnPickGallery, btnTakePhoto, btnGenerateVideo;
+    private MaterialButton btnAddProduct, btnPickGallery;
     private ProgressBar progressBar, progressVideo;
+    private View progressOverlay;
+
+    private SwitchMaterial switchGenerateVideo;
     private LinearLayout selectedImagesLayout;
     private View selectedImagesContainer;
-    private TextView tvVideoStatus;
 
     // Firebase
     private FirebaseStorage storage;
@@ -153,17 +157,16 @@ public class AddProductActivity extends AppCompatActivity {
             dropdownCategory = findViewById(R.id.dropdownCategory);
             btnAddProduct = findViewById(R.id.btnAddProduct);
             progressBar = findViewById(R.id.progressBar);
+            progressOverlay = findViewById(R.id.progressOverlay);
             
             // Initialize image picker components
             btnPickGallery = findViewById(R.id.btnPickGallery);
-            btnTakePhoto = findViewById(R.id.btnTakePhoto);
             selectedImagesLayout = findViewById(R.id.selectedImagesLayout);
             selectedImagesContainer = findViewById(R.id.selectedImagesContainer);
             
             // Initialize video generator components
-            btnGenerateVideo = findViewById(R.id.btnGenerateVideo);
-            progressVideo = findViewById(R.id.progressVideo);
-            tvVideoStatus = findViewById(R.id.tvVideoStatus);
+            switchGenerateVideo = findViewById(R.id.switchGenerateVideo);
+            switchGenerateVideo.setEnabled(false); // Disable by default until images are selected
             
             // Setup category dropdown
             ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(
@@ -190,24 +193,23 @@ public class AddProductActivity extends AppCompatActivity {
                 }
             });
             
-            btnTakePhoto.setOnClickListener(v -> {
-                if (checkAndRequestPermissions()) {
-                    openCamera();
-                }
-            });
-            
-            // Video generation button
-            btnGenerateVideo.setOnClickListener(v -> {
-                if (selectedImageUris.isEmpty()) {
+
+            switchGenerateVideo.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (selectedImageUris.isEmpty() && isChecked) {
                     Toast.makeText(this, "Please upload at least one image first", Toast.LENGTH_SHORT).show();
+                    switchGenerateVideo.setChecked(false);
                     return;
                 }
-                isVideoGenerationRequested = true;
-                btnGenerateVideo.setEnabled(false);
-                progressVideo.setVisibility(View.VISIBLE);
-                tvVideoStatus.setVisibility(View.VISIBLE);
-                tvVideoStatus.setText("Preparing to generate 360° video...");
+                isVideoGenerationRequested = isChecked;
+                // optionally, give instant feedback:
+                String toast = isChecked
+                        ? "360° Video will be generated"
+                        : "360° Video disabled";
+                Toast.makeText(this, toast, Toast.LENGTH_SHORT).show();
             });
+
+            // Video generation button
+
             
             // Submit button
             btnAddProduct.setOnClickListener(v -> {
@@ -266,12 +268,6 @@ public class AddProductActivity extends AppCompatActivity {
         }
     }
 
-    private void openCamera() {
-        Log.d(TAG, "Opening camera");
-        // This would require implementing camera functionality
-        // For now, show a message that camera is not implemented
-        Toast.makeText(this, "Camera functionality not implemented yet", Toast.LENGTH_SHORT).show();
-    }
 
     private void handleGalleryResult(Intent data) {
         Log.d(TAG, "Handling gallery result");
@@ -304,6 +300,7 @@ public class AddProductActivity extends AppCompatActivity {
             // Show the images container if we have images
             if (!selectedImageUris.isEmpty()) {
                 selectedImagesContainer.setVisibility(View.VISIBLE);
+                switchGenerateVideo.setEnabled(true); // Enable video generation when we have images
             }
             
             Log.d(TAG, "Now have " + selectedImageUris.size() + " images selected");
@@ -338,6 +335,8 @@ public class AddProductActivity extends AppCompatActivity {
                 // Hide container if no images
                 if (selectedImageUris.isEmpty()) {
                     selectedImagesContainer.setVisibility(View.GONE);
+                    switchGenerateVideo.setEnabled(false); // Disable video generation when no images
+                    switchGenerateVideo.setChecked(false); // Uncheck it as well
                 }
             });
             
@@ -356,7 +355,8 @@ public class AddProductActivity extends AppCompatActivity {
                 return;
             }
             
-            // Show progress
+            // Show progress overlay
+            progressOverlay.setVisibility(View.VISIBLE);
             progressBar.setVisibility(View.VISIBLE);
             btnAddProduct.setEnabled(false);
             
@@ -367,6 +367,7 @@ public class AddProductActivity extends AppCompatActivity {
             
             if (selectedImageUris.isEmpty()) {
                 Toast.makeText(this, "Please select at least one product image", Toast.LENGTH_SHORT).show();
+                progressOverlay.setVisibility(View.GONE);
                 progressBar.setVisibility(View.GONE);
                 btnAddProduct.setEnabled(true);
                 return;
@@ -388,7 +389,7 @@ public class AddProductActivity extends AppCompatActivity {
                                 if (imageUrls.size() == selectedImageUris.size()) {
                                     if (isVideoGenerationRequested) {
                                         // Generate 360 video if requested
-                                        tvVideoStatus.setText("Generating 360° video... This may take a few minutes.");
+
                                         callTrellisAPI(imageUrls, userId);
                                     } else {
                                         // Save product without video
@@ -412,83 +413,109 @@ public class AddProductActivity extends AppCompatActivity {
     }
 
     private void callTrellisAPI(List<String> imageUrls, String userId) {
-        Log.d(TAG, "Calling Trellis API for 360° video generation");
-        
         try {
-            JSONObject requestBody = new JSONObject();
-            requestBody.put("version", MODEL_VERSION);
-            
-            JSONObject input = new JSONObject();
-            JSONArray imagesArray = new JSONArray();
-            
-            // Add all image URLs to the request
-            for (String imageUrl : imageUrls) {
-                imagesArray.put(imageUrl);
-            }
-            
-            input.put("images", imagesArray);
-            requestBody.put("input", input);
-            
+            // 1. Build input payload exactly as before
+            JSONArray imagesArray = new JSONArray(imageUrls);
+            JSONObject input = new JSONObject()
+                    .put("images",        imagesArray)
+                    .put("texture_size",  2048)
+                    .put("mesh_simplify", 0.9)
+                    .put("ss_sampling_steps", 38)
+                    .put("generate_model",  false)
+                    .put("generate_color",  true)   // <-- MP4
+                    .put("generate_normal", false);
+
+            JSONObject payload = new JSONObject()
+                    .put("version", MODEL_VERSION)
+                    .put("input",   input);
+
+            // 2. Build client & request with Prefer: wait=60
             OkHttpClient client = new OkHttpClient.Builder()
-                    .connectTimeout(30, TimeUnit.SECONDS)
-                    .readTimeout(30, TimeUnit.SECONDS)
-                    .writeTimeout(30, TimeUnit.SECONDS)
+                    .connectTimeout(60, TimeUnit.SECONDS)
+                    .writeTimeout(60,   TimeUnit.SECONDS)
+                    .readTimeout(60,    TimeUnit.SECONDS)
                     .build();
-            
+
+            RequestBody body = RequestBody.create(
+                    payload.toString(),
+                    MediaType.parse("application/json; charset=utf-8")
+            );
+
             Request request = new Request.Builder()
                     .url("https://api.replicate.com/v1/predictions")
-                    .post(RequestBody.create(
-                            MediaType.parse("application/json"), requestBody.toString()))
-                    .header("Authorization", "Token " + REPLICATE_TOKEN)
+                    .addHeader("Authorization", "Bearer " + REPLICATE_TOKEN)
+                    .addHeader("Prefer",        "wait=60")
+                    .post(body)
                     .build();
-            
-            makeApiCall(client, request, imageUrls, userId);
-            
+
+            makeSyncApiCall(client, request, imageUrls, userId);
         } catch (JSONException e) {
-            Log.e(TAG, "Error creating JSON for API call", e);
-            saveProductToFirestore(imageUrls, null, userId);
-        } catch (Exception e) {
-            Log.e(TAG, "Error in callTrellisAPI", e);
+            Log.e(TAG, "JSON build error", e);
             saveProductToFirestore(imageUrls, null, userId);
         }
     }
 
-    private void makeApiCall(OkHttpClient client, Request request, List<String> imageUrls, String userId) {
+    private void makeSyncApiCall(OkHttpClient client, Request request,
+                                 List<String> imageUrls, String userId) {
         client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
+            @Override public void onFailure(Call call, IOException e) {
                 Log.e(TAG, "API call failed", e);
                 runOnUiThread(() -> {
-                    tvVideoStatus.setText("Video generation failed. Saving product without video.");
-                    // Save without video if API call fails
+                    resetUiWithError(
+                            e instanceof SocketTimeoutException
+                                    ? "Video generation timed out."
+                                    : "Network error: " + e.getMessage()
+                    );
+                    // Still save product without video
                     saveProductToFirestore(imageUrls, null, userId);
                 });
             }
 
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                if (response.isSuccessful()) {
-                    String responseBody = response.body().string();
-                    try {
-                        JSONObject jsonResponse = new JSONObject(responseBody);
-                        String predictionId = jsonResponse.getString("id");
-                        Log.d(TAG, "Started prediction with ID: " + predictionId);
-                        
-                        // Now poll for results
-                        runOnUiThread(() -> 
-                            tvVideoStatus.setText("Processing video... This may take a few minutes."));
-                        
-                        pollForResult(client, predictionId, imageUrls, userId);
-                        
-                    } catch (JSONException e) {
-                        Log.e(TAG, "Error parsing API response", e);
-                        runOnUiThread(() -> 
-                            saveProductToFirestore(imageUrls, null, userId));
+            @Override public void onResponse(Call call, Response response) throws IOException {
+                if (!response.isSuccessful()) {
+                    String err = response.body() != null
+                            ? response.body().string()
+                            : "empty body";
+                    Log.e(TAG, "HTTP error: " + response.code() + " — " + err);
+                    runOnUiThread(() -> {
+                        resetUiWithError("API error: " + response.code());
+                        saveProductToFirestore(imageUrls, null, userId);
+                    });
+                    return;
+                }
+
+                try {
+                    String resp = response.body().string();
+                    JSONObject prediction = new JSONObject(resp);
+
+                    // exactly as your old working code:
+                    JSONObject outputObj = prediction.getJSONObject("output");
+                    String videoUrl;
+                    if (outputObj.has("combined_video") && !outputObj.isNull("combined_video")) {
+                        videoUrl = outputObj.getString("combined_video");
+                    } else {
+                        videoUrl = outputObj.optString("color_video", null);
                     }
-                } else {
-                    Log.e(TAG, "API error: " + response.code() + " - " + response.message());
-                    runOnUiThread(() -> 
-                        saveProductToFirestore(imageUrls, null, userId));
+
+                    if (videoUrl == null) {
+                        Log.e(TAG, "No video URL in output");
+                        runOnUiThread(() -> {
+                            resetUiWithError("No video URL received");
+                            saveProductToFirestore(imageUrls, null, userId);
+                        });
+                        return;
+                    }
+
+                    Log.d(TAG, "Video generated: " + videoUrl);
+                    runOnUiThread(() -> {
+                        saveProductToFirestore(imageUrls, videoUrl, userId);
+                    });
+                } catch (JSONException je) {
+                    Log.e(TAG, "JSON parse error", je);
+                    runOnUiThread(() -> {
+                        resetUiWithError("Error parsing API response");
+                        saveProductToFirestore(imageUrls, null, userId);
+                    });
                 }
             }
         });
@@ -498,12 +525,12 @@ public class AddProductActivity extends AppCompatActivity {
         new Thread(() -> {
             try {
                 Thread.sleep(5000); // Wait 5 seconds before first check
-                
+
                 Request pollRequest = new Request.Builder()
                         .url("https://api.replicate.com/v1/predictions/" + predictionId)
                         .header("Authorization", "Token " + REPLICATE_TOKEN)
                         .build();
-                
+
                 client.newCall(pollRequest).enqueue(new Callback() {
                     @Override
                     public void onFailure(Call call, IOException e) {
@@ -524,41 +551,39 @@ public class AddProductActivity extends AppCompatActivity {
                             try {
                                 JSONObject jsonResponse = new JSONObject(responseBody);
                                 String status = jsonResponse.getString("status");
-                                
+
                                 switch (status) {
                                     case "succeeded":
                                         // Video is ready
                                         JSONObject output = jsonResponse.getJSONObject("output");
                                         String videoUrl = output.getString("video");
                                         Log.d(TAG, "Video generated: " + videoUrl);
-                                        
+
                                         runOnUiThread(() -> {
-                                            tvVideoStatus.setText("Video generated successfully!");
                                             saveProductToFirestore(imageUrls, videoUrl, userId);
                                         });
                                         break;
-                                        
+
                                     case "failed":
                                         Log.e(TAG, "Video generation failed");
                                         runOnUiThread(() -> {
-                                            tvVideoStatus.setText("Video generation failed. Saving product without video.");
                                             saveProductToFirestore(imageUrls, null, userId);
                                         });
                                         break;
-                                        
+
                                     case "processing":
                                     case "starting":
                                         // Still processing, poll again
                                         pollForResult(client, predictionId, imageUrls, userId);
                                         break;
-                                        
+
                                     default:
                                         Log.d(TAG, "Unknown status: " + status);
                                         runOnUiThread(() ->
                                             saveProductToFirestore(imageUrls, null, userId));
                                         break;
                                 }
-                                
+
                             } catch (JSONException e) {
                                 Log.e(TAG, "Error parsing poll response", e);
                                 runOnUiThread(() ->
@@ -571,7 +596,7 @@ public class AddProductActivity extends AppCompatActivity {
                         }
                     }
                 });
-                
+
             } catch (InterruptedException e) {
                 Log.e(TAG, "Polling interrupted", e);
                 runOnUiThread(() ->
@@ -597,6 +622,7 @@ public class AddProductActivity extends AppCompatActivity {
             product.setCategory(category);
             product.setImageUrls(imageUrls);
             product.setUserId(userId);
+            product.setVideoUrl(videoUrl);
             
             if (videoUrl != null && !videoUrl.isEmpty()) {
                 product.setVideoUrl(videoUrl);
@@ -627,10 +653,10 @@ public class AddProductActivity extends AppCompatActivity {
     private void resetUiWithError(String message) {
         runOnUiThread(() -> {
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+            progressOverlay.setVisibility(View.GONE);
             progressBar.setVisibility(View.GONE);
-            progressVideo.setVisibility(View.GONE);
             btnAddProduct.setEnabled(true);
-            btnGenerateVideo.setEnabled(true);
+            switchGenerateVideo.setEnabled(true);
         });
     }
 
@@ -701,5 +727,4 @@ public class AddProductActivity extends AppCompatActivity {
             }
         }
     }
-} 
-
+}

@@ -27,6 +27,7 @@ import com.example.ecommerceapp.activities.ProductDetailActivity;
 import com.example.ecommerceapp.adapters.ProductAdapter;
 import com.example.ecommerceapp.models.Product;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -51,8 +52,7 @@ public class ProductsFragment extends Fragment implements ProductAdapter.OnProdu
     private SearchView searchView;
     private ChipGroup categoryChipGroup;
     private FloatingActionButton fabCart;
-    private TextView btnApplyFilters;
-    private TextView tvSortBy;
+    private MaterialCardView btnApplyFilters;
     private ChipGroup activeFiltersChipGroup;
     
     private ProductAdapter adapter;
@@ -91,7 +91,6 @@ public class ProductsFragment extends Fragment implements ProductAdapter.OnProdu
         categoryChipGroup = view.findViewById(R.id.categoryChipGroup);
         fabCart = view.findViewById(R.id.fabCart);
         btnApplyFilters = view.findViewById(R.id.btnApplyFilters);
-        tvSortBy = view.findViewById(R.id.tvSortBy);
         activeFiltersChipGroup = view.findViewById(R.id.activeFiltersChipGroup);
         
         // Initialize lists
@@ -126,9 +125,6 @@ public class ProductsFragment extends Fragment implements ProductAdapter.OnProdu
         
         // Setup filter button
         btnApplyFilters.setOnClickListener(v -> showFilterDialog());
-        
-        // Setup sort button
-        tvSortBy.setOnClickListener(v -> showSortDialog());
         
         // Setup cart button
         fabCart.setOnClickListener(v -> {
@@ -226,47 +222,6 @@ public class ProductsFragment extends Fragment implements ProductAdapter.OnProdu
         });
         
         dialog.show();
-    }
-    
-    private void showSortDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
-        builder.setTitle("Sort By");
-        
-        String[] sortOptions = getResources().getStringArray(R.array.sort_options);
-        
-        // Find the current sort option index
-        int selectedIndex = 0;
-        for (int i = 0; i < sortOptions.length; i++) {
-            if (sortOptions[i].equals(sortLabel)) {
-                selectedIndex = i;
-                break;
-            }
-        }
-        
-        builder.setSingleChoiceItems(sortOptions, selectedIndex, (dialog, which) -> {
-            String selectedSort = sortOptions[which];
-            sortLabel = selectedSort;
-            
-            if (selectedSort.equals("Newest First")) {
-                sortBy = "timestamp";
-                sortAscending = false;
-            } else if (selectedSort.equals("Price: Low to High")) {
-                sortBy = "price";
-                sortAscending = true;
-            } else if (selectedSort.equals("Price: High to Low")) {
-                sortBy = "price";
-                sortAscending = false;
-            } else if (selectedSort.equals("Rating: High to Low")) {
-                sortBy = "averageRating";
-                sortAscending = false;
-            }
-            
-            updateActiveFiltersChips();
-            filterProducts();
-            dialog.dismiss();
-        });
-        
-        builder.show();
     }
     
     private void updateActiveFiltersChips() {
@@ -470,4 +425,4 @@ public class ProductsFragment extends Fragment implements ProductAdapter.OnProdu
         super.onResume();
         loadProducts(); // Reload products when returning to fragment
     }
-} 
+}

@@ -8,12 +8,15 @@ import androidx.viewpager2.adapter.FragmentStateAdapter;
 import com.example.ecommerceapp.fragments.OrderListFragment;
 
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 public class OrderPagerAdapter extends FragmentStateAdapter {
     private static final int NUM_PAGES = 5;
     
     private Date startDate;
     private Date endDate;
+    private Map<Integer, OrderListFragment> fragmentMap = new HashMap<>();
     
     public OrderPagerAdapter(@NonNull FragmentActivity fragmentActivity) {
         super(fragmentActivity);
@@ -42,7 +45,9 @@ public class OrderPagerAdapter extends FragmentStateAdapter {
                 break;
         }
         
-        return OrderListFragment.newInstance(status, startDate, endDate);
+        OrderListFragment fragment = OrderListFragment.newInstance(status, startDate, endDate);
+        fragmentMap.put(position, fragment);
+        return fragment;
     }
     
     @Override
@@ -58,6 +63,14 @@ public class OrderPagerAdapter extends FragmentStateAdapter {
     public void setDateRange(Date startDate, Date endDate) {
         this.startDate = startDate;
         this.endDate = endDate;
+        
+        // Refresh existing fragments with new date filter
+        for (OrderListFragment fragment : fragmentMap.values()) {
+            if (fragment != null) {
+                fragment.updateDateFilter(startDate, endDate);
+            }
+        }
+        
         notifyDataSetChanged();
     }
     
@@ -70,4 +83,4 @@ public class OrderPagerAdapter extends FragmentStateAdapter {
     public boolean containsItem(long itemId) {
         return itemId >= 0 && itemId < NUM_PAGES;
     }
-} 
+}

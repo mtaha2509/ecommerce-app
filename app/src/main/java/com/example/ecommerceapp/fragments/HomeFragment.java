@@ -145,7 +145,6 @@ public class HomeFragment extends Fragment implements SellerOrderAdapter.SellerO
         btnViewAllOrders = view.findViewById(R.id.btnViewAllOrders);
         
         recyclerViewRecentOrders = view.findViewById(R.id.recyclerViewRecentOrders);
-        tvNoSalesData = view.findViewById(R.id.tvNoSalesData);
     }
     
     private void setSellerWelcome() {

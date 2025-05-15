@@ -121,6 +121,19 @@ public class OrderListFragment extends Fragment implements SellerOrderAdapter.Se
         loadOrders();
     }
     
+    /**
+     * Update date filter and reload orders
+     */
+    public void updateDateFilter(Date startDate, Date endDate) {
+        this.startDate = startDate;
+        this.endDate = endDate;
+        
+        // Only reload if fragment is added to activity
+        if (isAdded()) {
+            loadOrders();
+        }
+    }
+    
     private void loadOrders() {
         progressBar.setVisibility(View.VISIBLE);
         tvEmptyView.setVisibility(View.GONE);
@@ -209,4 +222,4 @@ public class OrderListFragment extends Fragment implements SellerOrderAdapter.Se
             loadOrders();
         }
     }
-} 
+}

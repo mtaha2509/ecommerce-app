@@ -5,6 +5,17 @@
         <!-- Customize your light theme here. -->
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
     </style>
+    
+    <!-- Style for SplashActivity to prevent default splash screen -->
+    <style name="Theme.Buyzaar.NoSplash" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <!-- Disable the default splash screen -->
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+    </style>
 
     <style name="Theme.EcommerceApp" parent="Theme.MaterialComponents.Light.NoActionBar">
         <!-- Primary brand colors -->

@@ -16,6 +16,8 @@ import androidx.viewpager2.widget.ViewPager2;
 
 import com.example.ecommerceapp.R;
 import com.example.ecommerceapp.adapters.OrderPagerAdapter;
+import com.example.ecommerceapp.adapters.SellerOrderAdapter;
+import com.example.ecommerceapp.models.Order;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
@@ -26,7 +28,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import java.util.Calendar;
 import java.util.Date;
 
-public class OrderManagementActivity extends AppCompatActivity {
+public class OrderManagementActivity extends AppCompatActivity implements SellerOrderAdapter.SellerOrderClickListener {
     private static final String TAG = "OrderManagementActivity";
     
     private Toolbar toolbar;
@@ -219,4 +221,146 @@ public class OrderManagementActivity extends AppCompatActivity {
         onBackPressed();
         return true;
     }
-} 
+    
+    // SellerOrderAdapter.SellerOrderClickListener interface implementation
+    @Override
+    public void onOrderClick(Order order) {
+        // Show order details dialog
+        showOrderDetailsDialog(order);
+    }
+    
+    @Override
+    public void onProcessOrderClick(Order order) {
+        // Process the order based on current status
+        String currentStatus = order.getStatus();
+        String newStatus = "";
+        String message = "";
+        
+        switch (currentStatus) {
+            case "PENDING":
+                newStatus = "PROCESSING";
+                message = "Order is now being processed";
+                break;
+            case "PROCESSING":
+                newStatus = "SHIPPED";
+                message = "Order has been marked as shipped";
+                break;
+            case "SHIPPED":
+                // Show tracking info
+                showTrackingInfoDialog(order);
+                return;
+        }
+        
+        if (!newStatus.isEmpty()) {
+            updateOrderStatus(order, newStatus, message);
+        }
+    }
+    
+    private void showOrderDetailsDialog(Order order) {
+        StringBuilder itemsText = new StringBuilder();
+        if (order.getItems() != null) {
+            for (int i = 0; i < order.getItems().size(); i++) {
+                itemsText.append(order.getItems().get(i).getTitle())
+                        .append(" (x")
+                        .append(order.getItems().get(i).getQuantity())
+                        .append(")");
+                
+                if (i < order.getItems().size() - 1) {
+                    itemsText.append("\n");
+                }
+            }
+        }
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Order #" + (order.getOrderNumber() != null ? 
+                order.getOrderNumber() : order.getId().substring(0, 8)));
+        
+        builder.setMessage("Status: " + order.getStatus() +
+                "\nTotal: $" + String.format("%.2f", order.getTotalAmount()) +
+                "\n\nItems:\n" + itemsText.toString());
+        
+        builder.setPositiveButton("Close", null);
+        
+        // Add process button if the order can be processed
+        if ("PENDING".equals(order.getStatus()) || "PROCESSING".equals(order.getStatus())) {
+            String actionText = "PENDING".equals(order.getStatus()) ? "Process Order" : "Ship Order";
+            
+            builder.setNeutralButton(actionText, (dialog, which) -> {
+                onProcessOrderClick(order);
+            });
+        }
+        
+        builder.show();
+    }
+    
+    private void showTrackingInfoDialog(Order order) {
+        // Get existing tracking info if any
+        String trackingNumber = order.getTrackingNumber();
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Tracking Information");
+        
+        // Show existing tracking info or enter new
+        if (trackingNumber != null && !trackingNumber.isEmpty()) {
+            builder.setMessage("Tracking Number: " + trackingNumber);
+            builder.setPositiveButton("Close", null);
+        } else {
+            // Create an input dialog for tracking number
+            final View inputView = LayoutInflater.from(this)
+                    .inflate(android.R.layout.simple_list_item_1, null);
+            final TextView input = inputView.findViewById(android.R.id.text1);
+            input.setHint("Enter tracking number");
+            
+            builder.setView(inputView);
+            builder.setPositiveButton("Submit", (dialog, which) -> {
+                String newTrackingNumber = input.getText().toString().trim();
+                if (!newTrackingNumber.isEmpty()) {
+                    updateTrackingNumber(order, newTrackingNumber);
+                }
+            });
+            builder.setNegativeButton("Cancel", null);
+        }
+        
+        builder.show();
+    }
+    
+    private void updateOrderStatus(Order order, String newStatus, String message) {
+        firestore.collection("orders")
+                .document(order.getId())
+                .update("status", newStatus)
+                .addOnSuccessListener(aVoid -> {
+                    // Update local order object
+                    order.setStatus(newStatus);
+                    
+                    // Notify the current fragment to refresh its data
+                    int currentTab = viewPager.getCurrentItem();
+                    if (pagerAdapter != null) {
+                        pagerAdapter.notifyDataSetChanged();
+                    }
+                    
+                    // Show success message
+                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this, "Failed to update order status", Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, "Error updating order status", e);
+                });
+    }
+    
+    private void updateTrackingNumber(Order order, String trackingNumber) {
+        firestore.collection("orders")
+                .document(order.getId())
+                .update("trackingNumber", trackingNumber)
+                .addOnSuccessListener(aVoid -> {
+                    // Update local order object
+                    order.setTrackingNumber(trackingNumber);
+                    
+                    // Show success message
+                    Toast.makeText(this, "Tracking number updated", Toast.LENGTH_SHORT).show();
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this, "Failed to update tracking number", Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, "Error updating tracking number", e);
+                });
+    }
+}
